@@ -1,0 +1,41 @@
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, FileText, Target } from 'lucide-react';
+
+export default function PlantDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5 text-slate-600" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Plant Owner Details: {id}</h1>
+          <p className="text-sm text-slate-500 font-medium">View plant owner profile and equipment statistics</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Target className="h-4 w-4 text-slate-400" /> Plant Information
+              </h3>
+              <div className="p-4 bg-slate-50 rounded-xl space-y-2">
+                <p className="text-sm text-slate-600"><span className="font-semibold text-slate-900">Company:</span> EarthMovers SA</p>
+                <p className="text-sm text-slate-600"><span className="font-semibold text-slate-900">Contact:</span> John Carter</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
