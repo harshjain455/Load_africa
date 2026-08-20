@@ -75,7 +75,7 @@ export default function PlantOperators() {
   return (
     <div className="space-y-6 relative">
       {toast.show && (
-        <div className="\bsolute top-0 right-0 p-3 rounded shadow-md text-sm font-bold z-50 \\">
+        <div className="absolute top-0 right-0 p-3 rounded shadow-md text-sm font-bold z-[100] bg-white mt-4 mr-4 border border-slate-200">
           {toast.message}
         </div>
       )}

@@ -251,7 +251,9 @@ export default function PlantOwners() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-bold border uppercase ${
-                        owner.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                        owner.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                        owner.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-rose-50 text-rose-700 border-rose-200'
                       }`}>
                         {owner.status}
                       </span>
@@ -261,6 +263,11 @@ export default function PlantOwners() {
                         <button onClick={() => navigate(`/admin-portal/plant-owners/${owner.id}`)} className="p-1.5 text-slate-400 hover:text-sky-500 hover:bg-sky-50 rounded-lg transition-colors" title="View Details">
                           <Eye className="h-4 w-4" />
                         </button>
+                        {owner.status === 'PENDING' && (
+                           <button onClick={() => handleOwnerAction(owner.id, 'ACTIVE')} className="p-1.5 text-slate-400 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
+                             <CheckCircle2 className="h-4 w-4" />
+                           </button>
+                        )}
                         {owner.status === 'ACTIVE' && (
                            <button onClick={() => handleOwnerAction(owner.id, 'SUSPENDED')} className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Suspend">
                              <PauseCircle className="h-4 w-4" />

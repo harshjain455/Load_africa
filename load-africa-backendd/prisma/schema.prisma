@@ -164,7 +164,13 @@ model Machine {
   id                  String              @id @default(uuid())
   plant_owner_id      String
   type                String
+  category            String?
+  make                String?
+  model_name          String?
+  year                Int?
   capacity            Float?
+  hourly_rate         Float?
+  min_hire_hours      Int?
   registration_number String              @unique
   status              String              @default("CREATED")
   machine_documents   String?             @db.LongText
