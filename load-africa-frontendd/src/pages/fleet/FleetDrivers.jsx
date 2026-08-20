@@ -11,7 +11,7 @@ export default function FleetDrivers() {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
+
   const [actionModal, setActionModal] = useState({ open: false, driver: null, action: '' });
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
@@ -41,8 +41,8 @@ export default function FleetDrivers() {
     }
   };
 
-  const filteredDrivers = drivers.filter(d => 
-    d.user.first_name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredDrivers = drivers.filter(d =>
+    d.user.first_name.toLowerCase().includes(search.toLowerCase()) ||
     d.user.last_name.toLowerCase().includes(search.toLowerCase()) ||
     d.license?.toLowerCase().includes(search.toLowerCase())
   );
@@ -60,7 +60,7 @@ export default function FleetDrivers() {
         const data = await fleetService.updateDriverStatus(driver.id, newStatus);
         if (!data.success) throw new Error(data.message);
       }
-      
+
       setActionModal({ open: false, driver: null, action: '' });
       fetchDrivers();
     } catch (err) {
@@ -85,7 +85,7 @@ export default function FleetDrivers() {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Drivers</h1>
           <p className="text-sm text-slate-500 font-medium mt-1">Manage your fleet's drivers and their documents</p>
         </div>
-        <Button 
+        <Button
           className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-amber-500/20"
           onClick={() => navigate('/fleet-portal/drivers/add')}
         >
@@ -96,9 +96,9 @@ export default function FleetDrivers() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-          <Input 
-            icon={Search} 
-            placeholder="Search drivers by name or license..." 
+          <Input
+            icon={Search}
+            placeholder="Search drivers by name or license..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-md bg-white"
@@ -124,9 +124,9 @@ export default function FleetDrivers() {
                 <tr key={driver.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 pl-6">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={driver.user.avatar ? (driver.user.avatar.startsWith('http') ? driver.user.avatar : `${API_BASE}${driver.user.avatar}`) : `https://api.dicebear.com/7.x/initials/svg?seed=${driver.user.first_name || 'Driver'}`} 
-                        alt="Driver" 
+                      <img
+                        src={driver.user.avatar ? (driver.user.avatar.startsWith('http') ? driver.user.avatar : `${API_BASE}${driver.user.avatar}`) : `https://api.dicebear.com/7.x/initials/svg?seed=${driver.user.first_name || 'Driver'}`}
+                        alt="Driver"
                         className="w-10 h-10 rounded-full object-cover bg-slate-100 border border-slate-200"
                       />
                       <div>
@@ -163,11 +163,10 @@ export default function FleetDrivers() {
                     )}
                   </td>
                   <td className="p-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                      driver.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                      driver.status === 'ON_TRIP' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                      'bg-slate-100 text-slate-600 border border-slate-200'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${driver.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                        driver.status === 'ON_TRIP' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                          'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
                       {driver.status.replace('_', ' ')}
                     </span>
                   </td>
@@ -178,11 +177,10 @@ export default function FleetDrivers() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                      driver.user.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                      driver.user.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                      'bg-red-50 text-red-600 border border-red-200'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${driver.user.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                        driver.user.status === 'PENDING' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                          'bg-red-50 text-red-600 border border-red-200'
+                      }`}>
                       {driver.user.status}
                     </span>
                   </td>
@@ -195,14 +193,14 @@ export default function FleetDrivers() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => setActionModal({ open: true, driver, action: driver.user.status === 'ACTIVE' ? 'suspend' : 'activate' })}
                         className="p-1.5 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
                         title={driver.user.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
                       >
                         {driver.user.status === 'ACTIVE' ? <ShieldAlert className="w-4 h-4 text-red-500" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                       </button>
-                      <button 
+                      <button
                         onClick={() => setActionModal({ open: true, driver, action: 'delete' })}
                         className="p-1.5 text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete"
@@ -225,8 +223,8 @@ export default function FleetDrivers() {
         </div>
       </div>
 
-      <Modal 
-        isOpen={actionModal.open} 
+      <Modal
+        isOpen={actionModal.open}
         onClose={() => { setActionModal({ open: false, driver: null, action: '' }); setActionError(''); }}
         title={actionModal.action === 'delete' ? 'Delete Driver' : actionModal.action === 'suspend' ? 'Suspend Driver' : 'Activate Driver'}
       >
@@ -237,7 +235,7 @@ export default function FleetDrivers() {
               <p>{actionError}</p>
             </div>
           )}
-          
+
           <p className="text-slate-600 text-sm">
             {actionModal.action === 'delete' && "Are you sure you want to permanently delete this driver? This action cannot be undone."}
             {actionModal.action === 'suspend' && "Are you sure you want to suspend this driver? They will not be able to log in or receive trips."}
@@ -248,7 +246,7 @@ export default function FleetDrivers() {
             <Button variant="outline" onClick={() => setActionModal({ open: false, driver: null, action: '' })}>
               Cancel
             </Button>
-            <Button 
+            <Button
               className={actionModal.action === 'delete' ? 'bg-red-500 hover:bg-red-600 text-white border-none' : 'bg-slate-900 text-white'}
               onClick={handleAction}
             >

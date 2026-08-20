@@ -23,6 +23,7 @@ model User {
   is_deleted            Boolean               @default(false)
   avatar                String?
   bank_details          String?               @db.LongText
+  notification_preferences String?            @db.LongText
   first_name            String?
   last_name             String?
   phone                 String?
@@ -121,6 +122,7 @@ model FleetOwner {
   drivers           Driver[]
   user              User                @relation(fields: [user_id], references: [id])
   vehicles          Vehicle[]
+  offers            LoadOffer[]
 
   @@map("fleet_owners")
 }
@@ -791,14 +793,16 @@ model systemsetting {
 model LoadOffer {
   id                    String      @id @default(uuid())
   booking_id            String
-  driver_id             String
+  driver_id             String?
+  fleet_owner_id        String?
   status                String      @default("PENDING")
   estimated_pickup_time DateTime?
   distance_km           Float?
   created_at            DateTime    @default(now())
   updated_at            DateTime    @updatedAt
   booking               Booking     @relation(fields: [booking_id], references: [id], onDelete: Cascade)
-  driver                Driver      @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  driver                Driver?     @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  fleet_owner           FleetOwner? @relation(fields: [fleet_owner_id], references: [id], onDelete: Cascade)
 
   @@index([booking_id])
   @@index([driver_id])
@@ -822,10 +826,17 @@ enum BookingStatus {
   QUOTE_PREPARED
   CUSTOMER_ACCEPTED
   BOOKING_CONFIRMED
+  TRANSPORTER_SEARCHING
+  OFFER_SENT
+  TRANSPORTER_AVAILABLE
+  AVAILABILITY_CONFIRMED
+  TRANSPORTER_ASSIGNMENT
   DRIVER_SEARCHING
+  DRIVER_OFFER_SENT
   DRIVER_APPLIED
   DRIVER_ASSIGNED
   DRIVER_EN_ROUTE
+  MANUAL_ACTION_REQUIRED
   ARRIVED_PICKUP
   PICKUP_SCHEDULED
   PICKUP_ARRIVED
@@ -923,4 +934,14 @@ model TripPerformance {
   
   booking                   Booking  @relation(fields: [booking_id], references: [id], onDelete: Cascade)
   driver                    Driver   @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+}
+
+model SystemSetting {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  value      String?  @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("system_settings")
 }

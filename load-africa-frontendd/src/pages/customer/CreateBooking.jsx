@@ -1,30 +1,51 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  MapPin,
-  Truck,
-  Box,
-  ArrowLeft,
-  Send,
-  CheckCircle2,
-  Loader2,
-  AlertCircle,
-  Navigation,
-  Clock,
-  Weight,
-  Calendar,
-  MessageSquare,
-  ChevronDown,
-  ArrowRight,
-  Info,
-  Compass,
-  Crosshair,
-  X,
+  MapPin, Truck, Box, ArrowLeft, Send, CheckCircle2, Loader2,
+  AlertCircle, Navigation, Clock, Weight, Calendar, MessageSquare,
+  Zap, Users, ChevronDown, ArrowRight, Info
 } from 'lucide-react';
 import { bookingService } from '../../services/bookingService';
 import { authService } from '../../services/authService';
-import { locationService } from '../../services/locationService';
-import RoutePreviewMap from '../../components/ui/RoutePreviewMap';
+
+// ─────────────────────────────────────────────
+// Nominatim geocoding (OpenStreetMap — free, no API key)
+// ─────────────────────────────────────────────
+const searchAddress = async (query) => {
+  if (!query || query.length < 3) return [];
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=za&limit=5&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const data = await res.json();
+    return data.map(d => ({
+      label: d.display_name,
+      lat: parseFloat(d.lat),
+      lng: parseFloat(d.lon),
+    }));
+  } catch {
+    return [];
+  }
+};
+
+// OSRM route calculation (free, no API key)
+const calculateRoute = async (fromLat, fromLng, toLat, toLng) => {
+  try {
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`
+    );
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      const route = data.routes[0];
+      return {
+        distanceKm: (route.distance / 1000).toFixed(1),
+        durationMins: Math.round(route.duration / 60),
+      };
+    }
+  } catch { }
+  return null;
+};
 
 // Vehicle categories and types
 const VEHICLE_CATEGORIES = {
@@ -35,19 +56,10 @@ const VEHICLE_CATEGORIES = {
 };
 
 const CARGO_CATEGORIES = [
-  'General Cargo',
-  'Building Materials',
-  'Agricultural Produce',
-  'Furniture & Household',
-  'Industrial Equipment',
-  'Retail & FMCG',
-  'Refrigerated / Perishable',
-  'Hazardous Materials',
-  'Livestock',
-  'Mining & Minerals',
-  'Electronics',
-  'Automotive Parts',
-  'Other',
+  'General Cargo', 'Building Materials', 'Agricultural Produce',
+  'Furniture & Household', 'Industrial Equipment', 'Retail & FMCG',
+  'Refrigerated / Perishable', 'Hazardous Materials', 'Livestock',
+  'Mining & Minerals', 'Electronics', 'Automotive Parts', 'Other',
 ];
 
 const getMaxWeight = (vehicleType) => {
@@ -63,95 +75,35 @@ const getMaxWeight = (vehicleType) => {
 };
 
 // ─────────────────────────────────────────────
-// Address autocomplete hook with debounce & cancellation
+// Address autocomplete hook
 // ─────────────────────────────────────────────
 function useAddressSearch(initialValue = '') {
   const [value, setValue] = useState(initialValue);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [hasSearched, setHasSearched] = useState(false);
   const debounceRef = useRef(null);
-  const abortControllerRef = useRef(null);
 
   const onChange = useCallback((text) => {
     setValue(text);
-
-    // If user modifies text, invalidate the previously resolved location
-    setSelected((prev) => {
-      if (prev && (prev.formattedAddress === text || prev.label === text)) {
-        return prev;
-      }
-      return null;
-    });
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    // Don't auto-set coordinates — user must pick from suggestions
+    if (text.length < 3) {
+      setSelected(null);
     }
-
     clearTimeout(debounceRef.current);
-
-    if (!text || text.trim().length < 2) {
-      setSuggestions([]);
-      setLoading(false);
-      setHasSearched(false);
-      return;
-    }
-
+    if (text.length < 3) { setSuggestions([]); return; }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
-      setHasSearched(true);
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      try {
-        const results = await locationService.searchLocations(
-          text,
-          controller.signal
-        );
-        setSuggestions(results);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          setSuggestions([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }, 350);
+      const results = await searchAddress(text);
+      setSuggestions(results);
+      setLoading(false);
+    }, 400);
   }, []);
 
   const onSelect = useCallback((suggestion) => {
-    const formatted = suggestion.formattedAddress || suggestion.label;
-    setValue(formatted);
-    setSelected({
-      placeId: suggestion.placeId,
-      formattedAddress: formatted,
-      label: formatted,
-      lat: suggestion.latitude || suggestion.lat,
-      lng: suggestion.longitude || suggestion.lng,
-      city: suggestion.city || '',
-      province: suggestion.province || '',
-      country: suggestion.country || 'South Africa',
-    });
+    setValue(suggestion.label);
+    setSelected(suggestion);
     setSuggestions([]);
-    setHasSearched(false);
-  }, []);
-
-  const setFromDirectLocation = useCallback((locationObj) => {
-    const formatted = locationObj.formattedAddress || locationObj.label;
-    setValue(formatted);
-    setSelected({
-      placeId: locationObj.placeId || `loc-${Date.now()}`,
-      formattedAddress: formatted,
-      label: formatted,
-      lat: locationObj.latitude || locationObj.lat,
-      lng: locationObj.longitude || locationObj.lng,
-      city: locationObj.city || '',
-      province: locationObj.province || '',
-      country: locationObj.country || 'South Africa',
-    });
-    setSuggestions([]);
-    setHasSearched(false);
   }, []);
 
   const closeSuggestions = () => {
@@ -162,36 +114,15 @@ function useAddressSearch(initialValue = '') {
     setValue('');
     setSelected(null);
     setSuggestions([]);
-    setHasSearched(false);
   };
 
-  return {
-    value,
-    onChange,
-    onSelect,
-    setFromDirectLocation,
-    suggestions,
-    loading,
-    selected,
-    hasSearched,
-    clear,
-    closeSuggestions,
-  };
+  return { value, onChange, onSelect, suggestions, loading, selected, clear, closeSuggestions };
 }
 
 // ─────────────────────────────────────────────
-// Reusable Address Input Component with Map Pick Button
+// Reusable Address Input Component
 // ─────────────────────────────────────────────
-function AddressInput({
-  label,
-  icon: Icon,
-  color,
-  hook,
-  placeholder,
-  id,
-  onPickOnMap,
-  isPickingOnMap,
-}) {
+function AddressInput({ label, icon: Icon, color, hook, placeholder, id }) {
   const ref = useRef(null);
 
   // Close suggestions on outside click
@@ -205,64 +136,27 @@ function AddressInput({
     return () => document.removeEventListener('mousedown', handler);
   }, [hook]);
 
-  const hasResolvedCoords =
-    hook.selected?.lat !== undefined && hook.selected?.lat !== null;
-
   return (
     <div className="space-y-1.5" ref={ref}>
-      <div className="flex items-center justify-between">
-        <label
-          htmlFor={id}
-          className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 tracking-wider"
-        >
-          <Icon className={`h-3.5 w-3.5 ${color} shrink-0`} /> {label}{' '}
-          <span className="text-red-400">*</span>
-        </label>
-        {onPickOnMap && (
-          <button
-            type="button"
-            onClick={onPickOnMap}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition-all ${
-              isPickingOnMap
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50 bg-slate-100'
-            }`}
-          >
-            <Crosshair className="h-3 w-3" />
-            {isPickingOnMap ? 'Picking on Map...' : 'Pick on Map'}
-          </button>
-        )}
-      </div>
-
+      <label htmlFor={id} className="flex items-center gap-2 text-xs font-black uppercase text-slate-500 tracking-wider">
+        <Icon className={`h-3.5 w-3.5 ${color} shrink-0`} /> {label} <span className="text-red-400">*</span>
+      </label>
       <div className="relative">
         <input
           id={id}
           value={hook.value}
-          onChange={(e) => hook.onChange(e.target.value)}
+          onChange={e => hook.onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete="off"
-          className={`w-full px-4 h-11 pr-10 text-xs font-semibold border rounded-xl focus:outline-none focus:ring-2 transition-all bg-slate-50/50 hover:bg-slate-50 ${
-            hasResolvedCoords
-              ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/10'
-              : hook.value && !hook.loading
-              ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/10'
+          className={`w-full px-4 h-11 pr-10 text-xs font-semibold border rounded-xl focus:outline-none focus:ring-2 transition-all bg-slate-50/50 hover:bg-slate-50 ${hook.selected?.lat ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/10'
               : 'border-slate-200 focus:border-amber-500 focus:ring-amber-500/10'
-          }`}
+            }`}
         />
-
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
           {hook.loading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
-          ) : hasResolvedCoords ? (
+            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+          ) : hook.selected?.lat ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          ) : hook.value ? (
-            <button
-              type="button"
-              onClick={hook.clear}
-              className="text-slate-400 hover:text-slate-600 p-0.5"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
           ) : (
             <Navigation className="h-4 w-4 text-slate-300" />
           )}
@@ -270,57 +164,70 @@ function AddressInput({
 
         {/* Suggestions dropdown */}
         {hook.suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-60 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
-            <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>Matching Locations</span>
-              <span>Select to confirm</span>
-            </div>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-56 overflow-y-auto">
             {hook.suggestions.map((s, i) => (
               <button
-                key={s.placeId || i}
+                key={i}
                 type="button"
                 onMouseDown={() => hook.onSelect(s)}
-                className="w-full text-left px-4 py-2.5 text-xs hover:bg-amber-50/80 transition-colors flex items-start gap-2.5"
+                className="w-full text-left px-4 py-2.5 text-xs hover:bg-amber-50 border-b border-slate-50 last:border-0 transition-colors"
               >
-                <MapPin className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-slate-800 font-semibold leading-tight truncate">
-                    {s.formattedAddress}
-                  </p>
-                  {(s.city || s.province) && (
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                      {[s.city, s.province, s.country]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </p>
-                  )}
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                  <span className="text-slate-700 font-medium leading-snug">{s.label}</span>
                 </div>
               </button>
             ))}
           </div>
         )}
-
-        {/* No suggestions state */}
-        {hook.hasSearched &&
-          !hook.loading &&
-          hook.suggestions.length === 0 &&
-          hook.value.trim().length >= 2 &&
-          !hasResolvedCoords && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 p-3 text-center text-xs text-slate-500 animate-fadeIn">
-              <p className="font-medium">No matching locations found.</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Try typing a city, suburb, or click "Pick on Map".
-              </p>
-            </div>
-          )}
       </div>
+    </div>
+  );
+}
 
-      {hook.value && !hasResolvedCoords && !hook.loading && (
-        <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-          <AlertCircle className="h-3 w-3 shrink-0" />
-          Please select a location from the dropdown suggestions or pick on the map.
-        </p>
-      )}
+// ─────────────────────────────────────────────
+// OpenStreetMap embed (iframe — no API key)
+// ─────────────────────────────────────────────
+function RouteMap({ pickup, delivery }) {
+  const hasCoords = pickup?.lat && pickup?.lng && delivery?.lat && delivery?.lng;
+
+  if (!hasCoords) {
+    return (
+      <div className="h-52 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium gap-2">
+        <MapPin className="h-5 w-5" />
+        Map will appear after selecting both addresses
+      </div>
+    );
+  }
+
+  // Centre the map between the two points
+  const centreLat = ((pickup.lat + delivery.lat) / 2).toFixed(4);
+  const centreLng = ((pickup.lng + delivery.lng) / 2).toFixed(4);
+
+  // OSM embed with markers for both points
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(pickup.lng, delivery.lng) - 0.5},${Math.min(pickup.lat, delivery.lat) - 0.5},${Math.max(pickup.lng, delivery.lng) + 0.5},${Math.max(pickup.lat, delivery.lat) + 0.5}&layer=mapnik&marker=${pickup.lat},${pickup.lng}`;
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+      <iframe
+        title="Route Map"
+        src={src}
+        width="100%"
+        height="220"
+        loading="lazy"
+        className="w-full border-0"
+      />
+      <div className="bg-white px-4 py-2.5 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-600">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="font-semibold truncate max-w-[140px]">{pickup.label?.split(',')[0]}</span>
+        </div>
+        <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+          <span className="font-semibold truncate max-w-[140px]">{delivery.label?.split(',')[0]}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -338,20 +245,15 @@ export default function CreateBooking() {
   const [submitError, setSubmitError] = useState('');
   const [submittedBookingId, setSubmittedBookingId] = useState(null);
 
-  // Map selection mode state: 'pickup' | 'delivery' | null
-  const [selectionMode, setSelectionMode] = useState(null);
-  const [reverseGeocoding, setReverseGeocoding] = useState(false);
-
   // Route calculation
-  const [routeData, setRouteData] = useState(null); // { distanceKm, durationMins, polylineCoordinates, distanceText, durationText }
+  const [routeData, setRouteData] = useState(null); // { distanceKm, durationMins }
   const [routeLoading, setRouteLoading] = useState(false);
-  const routeAbortControllerRef = useRef(null);
 
   // Address hooks
   const pickupHook = useAddressSearch(location.state?.pickup || '');
   const deliveryHook = useAddressSearch(location.state?.dropoff || '');
 
-  // Form data
+  // Form data (not stored in localStorage)
   const [form, setForm] = useState({
     vehicleCategory: '',
     vehicleType: '',
@@ -369,70 +271,22 @@ export default function CreateBooking() {
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   // When category changes, reset vehicle type
   const handleCategoryChange = (e) => {
-    setForm((prev) => ({
-      ...prev,
-      vehicleCategory: e.target.value,
-      vehicleType: '',
-    }));
+    setForm(prev => ({ ...prev, vehicleCategory: e.target.value, vehicleType: '' }));
   };
 
-  // Handle Map Click to Reverse Geocode
-  const handleMapClick = async ({ lat, lng }) => {
-    if (!selectionMode) return;
-
-    setReverseGeocoding(true);
-    try {
-      const geoResult = await locationService.reverseGeocode(lat, lng);
-      if (geoResult) {
-        if (selectionMode === 'pickup') {
-          pickupHook.setFromDirectLocation(geoResult);
-        } else if (selectionMode === 'delivery') {
-          deliveryHook.setFromDirectLocation(geoResult);
-        }
-      }
-    } catch (err) {
-      console.error('Error reverse geocoding clicked location:', err);
-    } finally {
-      setReverseGeocoding(false);
-      setSelectionMode(null);
-    }
-  };
-
-  // Auto-calculate route when both addresses are selected with valid coordinates
+  // Auto-calculate route when both addresses are selected
   useEffect(() => {
     const p = pickupHook.selected;
     const d = deliveryHook.selected;
-
-    if (
-      p?.lat !== undefined &&
-      p?.lat !== null &&
-      d?.lat !== undefined &&
-      d?.lat !== null
-    ) {
-      if (routeAbortControllerRef.current) {
-        routeAbortControllerRef.current.abort();
-      }
-
-      const controller = new AbortController();
-      routeAbortControllerRef.current = controller;
-
+    if (p?.lat && d?.lat) {
       setRouteLoading(true);
-      locationService
-        .getRoute(p.lat, p.lng, d.lat, d.lng, controller.signal)
-        .then((result) => {
-          if (result) {
-            setRouteData(result);
-          }
-          setRouteLoading(false);
-        })
+      calculateRoute(p.lat, p.lng, d.lat, d.lng)
+        .then(result => { setRouteData(result); setRouteLoading(false); })
         .catch(() => setRouteLoading(false));
     } else {
       setRouteData(null);
@@ -452,8 +306,8 @@ export default function CreateBooking() {
   const isWeightValid = maxWeight === null || !form.weight || parseFloat(form.weight) <= maxWeight;
 
   const step1Valid =
-    hasValidPickup &&
-    hasValidDelivery &&
+    pickupHook.selected?.lat &&
+    deliveryHook.selected?.lat &&
     form.vehicleType &&
     form.cargoCategory &&
     form.cargoName.trim() &&
@@ -464,7 +318,7 @@ export default function CreateBooking() {
   const formatDuration = (mins) => {
     if (!mins) return '—';
     const h = Math.floor(mins / 60);
-    const m = Math.round(mins % 60);
+    const m = mins % 60;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
@@ -472,6 +326,7 @@ export default function CreateBooking() {
     setSubmitting(true);
     setSubmitError('');
     try {
+      // Verify user is still authenticated
       const token = localStorage.getItem('token');
       if (!token) {
         setSubmitError('You are not logged in. Please log in and try again.');
@@ -483,18 +338,16 @@ export default function CreateBooking() {
       const delivery = deliveryHook.selected;
 
       if (!pickup?.lat || !delivery?.lat) {
-        setSubmitError(
-          'Please select valid pickup and delivery locations from the suggestions.'
-        );
+        setSubmitError('Please select valid pickup and delivery addresses.');
         setSubmitting(false);
         return;
       }
 
       const payload = {
-        pickup_address: pickup.formattedAddress || pickup.label,
+        pickup_address: pickup.label,
         pickup_coords_lat: pickup.lat,
         pickup_coords_lng: pickup.lng,
-        delivery_address: delivery.formattedAddress || delivery.label,
+        delivery_address: delivery.label,
         delivery_coords_lat: delivery.lat,
         delivery_coords_lng: delivery.lng,
         pickup_date: form.pickupDate,
@@ -505,36 +358,37 @@ export default function CreateBooking() {
         weight: parseFloat(form.weight),
         volume: form.volume ? parseFloat(form.volume) : null,
         requested_vehicle: form.vehicleType,
-        pickup_instructions:
-          [
-            form.specialInstructions,
-            form.pickupTime
-              ? `Preferred pickup time: ${form.pickupTime}`
-              : '',
-          ]
-            .filter(Boolean)
-            .join('\n') || null,
-        estimated_distance: routeData?.distanceKm
-          ? parseFloat(routeData.distanceKm)
-          : null,
-        estimated_duration_mins: routeData?.durationMins
-          ? parseInt(routeData.durationMins)
-          : null,
-        route_polyline: routeData?.polyline || null,
+        pickup_instructions: [
+          form.specialInstructions,
+          form.pickupTime ? `Preferred pickup time: ${form.pickupTime}` : '',
+        ].filter(Boolean).join('\n') || null,
+        estimated_distance: routeData?.distanceKm ? parseFloat(routeData.distanceKm) : null,
+        estimated_duration_mins: routeData?.durationMins ? parseInt(routeData.durationMins) : null,
       };
 
       const res = await bookingService.createBooking(payload);
       if (res.success) {
         setSubmittedBookingId(res.data.id);
+        // Push notification to broker
+        import('../../data/mockData').then(({ getMockData, saveMockData }) => {
+          const allNotifs = getMockData('notifications') || {};
+          allNotifs.broker = allNotifs.broker || [];
+          allNotifs.broker.unshift({
+            id: `nt-b-${Math.random()}`,
+            title: 'New Booking Request',
+            message: `A new booking for "${form.cargoName}" (${form.weight} Tons) is awaiting your quote.`,
+            read: false,
+            time: 'Just now',
+            type: 'info'
+          });
+          saveMockData('notifications', allNotifs);
+        }).catch(() => { });
         setStep(3);
       } else {
         setSubmitError(res.message || 'Failed to submit booking.');
       }
     } catch (err) {
-      setSubmitError(
-        err.response?.data?.message ||
-          'Network error occurred. Please try again.'
-      );
+      setSubmitError(err.response?.data?.message || 'Network error. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -552,35 +406,17 @@ export default function CreateBooking() {
       {STEPS.map((s, idx) => (
         <React.Fragment key={s.num}>
           <div className="flex items-center gap-2">
-            <div
-              className={`h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-black border-2 transition-all ${
-                step > s.num
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : step === s.num
-                  ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/30'
+            <div className={`h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-black border-2 transition-all ${step > s.num ? 'bg-emerald-500 border-emerald-500 text-white'
+                : step === s.num ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/30'
                   : 'bg-white border-slate-200 text-slate-400'
-              }`}
-            >
+              }`}>
               {step > s.num ? <CheckCircle2 className="h-4 w-4" /> : s.num}
             </div>
-            <span
-              className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${
-                step === s.num
-                  ? 'text-amber-600'
-                  : step > s.num
-                  ? 'text-emerald-600'
-                  : 'text-slate-400'
-              }`}
-            >
-              {s.label}
-            </span>
+            <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:block ${step === s.num ? 'text-amber-600' : step > s.num ? 'text-emerald-600' : 'text-slate-400'
+              }`}>{s.label}</span>
           </div>
           {idx < STEPS.length - 1 && (
-            <div
-              className={`flex-1 h-0.5 rounded-full ${
-                step > s.num ? 'bg-emerald-400' : 'bg-slate-200'
-              }`}
-            />
+            <div className={`flex-1 h-0.5 rounded-full ${step > s.num ? 'bg-emerald-400' : 'bg-slate-200'}`} />
           )}
         </React.Fragment>
       ))}
@@ -591,23 +427,23 @@ export default function CreateBooking() {
   const renderStep1 = () => (
     <div className="animate-fadeIn h-full">
       <div className="flex flex-col lg:flex-row gap-8 items-start h-full">
-        {/* ── LEFT COLUMN: Form Fields (68%) ── */}
+
+        {/* ── LEFT COLUMN: Form Fields (70%) ── */}
         <div className="w-full lg:w-[68%] lg:h-full lg:overflow-y-auto lg:pr-5 lg:pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
           {/* Broker info notice */}
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 shadow-xs mb-3">
             <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
             <div className="text-xs text-blue-700">
-              <span className="font-bold mr-1">
-                No price shown — that's intentional.
-              </span>
+              <span className="font-bold mr-1">No price shown — that's intentional.</span>
               <span className="font-medium opacity-90 leading-relaxed">
-                After you submit, a certified LoadAfrica broker will review your
-                details and prepare an official quotation.
+                After you submit, a certified LoadAfrica broker will review your details and prepare an official quotation.
               </span>
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 pb-10 shadow-sm space-y-5">
+
             {/* Route Section */}
             <div className="space-y-1.5">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
@@ -620,28 +456,15 @@ export default function CreateBooking() {
                   icon={MapPin}
                   color="text-emerald-500"
                   hook={pickupHook}
-                  placeholder="Search pickup location (e.g. Sandton, Durban, Pretoria)..."
-                  onPickOnMap={() =>
-                    setSelectionMode(
-                      selectionMode === 'pickup' ? null : 'pickup'
-                    )
-                  }
-                  isPickingOnMap={selectionMode === 'pickup'}
+                  placeholder="Search pickup location..."
                 />
-
                 <AddressInput
                   id="delivery"
                   label="Delivery Address"
                   icon={MapPin}
                   color="text-red-500"
                   hook={deliveryHook}
-                  placeholder="Search delivery location (e.g. Cape Town, Johannesburg)..."
-                  onPickOnMap={() =>
-                    setSelectionMode(
-                      selectionMode === 'delivery' ? null : 'delivery'
-                    )
-                  }
-                  isPickingOnMap={selectionMode === 'delivery'}
+                  placeholder="Search delivery location..."
                 />
               </div>
             </div>
@@ -666,10 +489,8 @@ export default function CreateBooking() {
                       className="w-full px-3 h-10 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 bg-slate-50 appearance-none cursor-pointer"
                     >
                       <option value="">Select category</option>
-                      {Object.keys(VEHICLE_CATEGORIES).map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
+                      {Object.keys(VEHICLE_CATEGORIES).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
@@ -688,13 +509,9 @@ export default function CreateBooking() {
                       className="w-full px-3 h-10 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 bg-slate-50 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Select type</option>
-                      {(VEHICLE_CATEGORIES[form.vehicleCategory] || []).map(
-                        (v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
-                        )
-                      )}
+                      {(VEHICLE_CATEGORIES[form.vehicleCategory] || []).map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                   </div>
@@ -722,10 +539,8 @@ export default function CreateBooking() {
                       className="w-full px-3 h-10 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 bg-slate-50 appearance-none cursor-pointer"
                     >
                       <option value="">Select cargo category</option>
-                      {CARGO_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
+                      {CARGO_CATEGORIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
@@ -748,8 +563,7 @@ export default function CreateBooking() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Weight className="h-3 w-3" /> Weight (tons){' '}
-                      <span className="text-red-400">*</span>
+                      <Weight className="h-3 w-3" /> Weight (tons) <span className="text-red-400">*</span>
                     </label>
                     <input
                       name="weight"
@@ -774,10 +588,7 @@ export default function CreateBooking() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      Volume (m³){' '}
-                      <span className="text-slate-400 font-normal normal-case text-[9px]">
-                        optional
-                      </span>
+                      Volume (m³) <span className="text-slate-400 font-normal normal-case text-[9px]">optional</span>
                     </label>
                     <input
                       name="volume"
@@ -817,10 +628,7 @@ export default function CreateBooking() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Preferred Time{' '}
-                    <span className="text-slate-400 font-normal normal-case text-[9px]">
-                      optional
-                    </span>
+                    Preferred Time <span className="text-slate-400 font-normal normal-case text-[9px]">optional</span>
                   </label>
                   <input
                     name="pickupTime"
@@ -839,9 +647,7 @@ export default function CreateBooking() {
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                 <MessageSquare className="h-3 w-3" /> Special Instructions
-                <span className="text-slate-400 font-normal normal-case text-[9px]">
-                  optional
-                </span>
+                <span className="text-slate-400 font-normal normal-case text-[9px]">optional</span>
               </label>
               <textarea
                 name="specialInstructions"
@@ -855,11 +661,7 @@ export default function CreateBooking() {
 
             {/* Next button */}
             <button
-              onClick={() => {
-                if (step1Valid) {
-                  setStep(2);
-                }
-              }}
+              onClick={() => setStep(2)}
               disabled={!step1Valid}
               className="w-full h-12 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 transition-all uppercase tracking-wider shadow-md shadow-amber-500/10"
             >
@@ -869,104 +671,70 @@ export default function CreateBooking() {
 
             {!step1Valid && (
               <p className="text-center text-[10px] text-slate-400 font-medium -mt-1">
-                Fill in all required (*) fields and select valid locations to
-                continue
+                Fill in all required (*) fields to continue
               </p>
             )}
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN: Live Map + Route Stats (32%) ── */}
+        {/* ── RIGHT COLUMN: Live Map + Route Stats (30%) ── */}
         <div className="w-full lg:w-[32%] lg:h-full lg:block hidden sticky top-0">
-          <div className="sticky top-6 flex flex-col w-full h-[calc(100vh-215px)] pb-12 overflow-y-auto pr-1 space-y-2.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {/* Map preview */}
-            <div className="bg-white border border-slate-200/85 rounded-2xl p-3.5 shadow-sm space-y-2.5">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                  <MapPin className="h-3 w-3 text-amber-500" /> Route Preview
-                </p>
-                {selectionMode && (
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md animate-pulse">
-                    Click map to place {selectionMode}
-                  </span>
-                )}
-              </div>
+          {/* Sticky wrapper on desktop */}
+          <div className="sticky top-6 flex flex-col w-full h-[calc(100vh-215px)] pb-12 overflow-y-auto pr-1 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
-              <RoutePreviewMap
-                pickupLocation={pickupHook.selected}
-                deliveryLocation={deliveryHook.selected}
-                routeData={routeData}
-                routeLoading={routeLoading}
-                selectionMode={selectionMode}
-                onMapClick={handleMapClick}
-                onCancelSelection={() => setSelectionMode(null)}
-                height="240px"
-              />
+            {/* Map preview */}
+            <div className="bg-white border border-slate-200/85 rounded-xl p-4 shadow-sm space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <MapPin className="h-3 w-3 text-amber-500" /> Route Preview
+              </p>
+              <RouteMap pickup={pickupHook.selected} delivery={deliveryHook.selected} />
             </div>
 
             {/* Route stats pill */}
-            {hasValidPickup && hasValidDelivery && (
-              <div
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold border shadow-sm ${
-                  routeLoading
-                    ? 'bg-slate-50 border-slate-200 text-slate-400'
-                    : routeData
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                    : 'bg-amber-50 border-amber-200 text-amber-700'
-                }`}
-              >
+            {pickupHook.selected?.lat && deliveryHook.selected?.lat && (
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold border shadow-sm ${routeLoading ? 'bg-slate-50 border-slate-200 text-slate-400'
+                  : routeData ? 'bg-emerald-50 border-emerald-250 text-emerald-700'
+                    : 'bg-amber-50 border-amber-250 text-amber-700'
+                }`}>
                 {routeLoading ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />{' '}
-                    Calculating road route...
-                  </>
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculating route...</>
                 ) : routeData ? (
                   <>
-                    <Navigation className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                    <span className="font-bold text-slate-800">
-                      {routeData.distanceText || `${routeData.distanceKm} km`}
-                    </span>
+                    <Navigation className="h-3.5 w-3.5 shrink-0" />
+                    <span className="font-bold text-slate-800">{routeData.distanceKm} km</span>
                     <span className="text-slate-400">·</span>
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                    <span className="text-slate-700">
-                      ~{routeData.durationText || formatDuration(routeData.durationMins)}
-                    </span>
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-slate-700">~{formatDuration(routeData.durationMins)} drive</span>
                   </>
                 ) : (
-                  <>
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-500" /> Road route calculated.
-                  </>
+                  <><AlertCircle className="h-3.5 w-3.5 text-amber-500" /> Could not calculate route. Continue anyway.</>
                 )}
               </div>
             )}
 
+
             {/* What happens next */}
             <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-4 space-y-2.5 shadow-sm">
-              <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-wider">
-                What happens next?
-              </h4>
+              <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-wider">What happens next?</h4>
               {[
                 { n: '1', t: 'Broker reviews your route & cargo' },
                 { n: '2', t: 'Broker prepares official quotation' },
                 { n: '3', t: 'You accept → booking is confirmed' },
                 { n: '4', t: 'Payment → Driver assigned' },
               ].map(({ n, t }) => (
-                <div
-                  key={n}
-                  className="flex items-center gap-2.5 text-xs text-amber-800"
-                >
-                  <div className="h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[9px] shrink-0">
-                    {n}
-                  </div>
+                <div key={n} className="flex items-center gap-2.5 text-xs text-amber-800">
+                  <div className="h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[9px] shrink-0">{n}</div>
                   <span className="font-bold">{t}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
+
 
   // ── STEP 2: Review & Confirm ──────────────
   const renderStep2 = () => {
@@ -974,60 +742,43 @@ export default function CreateBooking() {
     const delivery = deliveryHook.selected;
 
     return (
-      <div className="space-y-5 animate-fadeIn max-w-4xl mx-auto">
-        {/* Interactive Map */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
-          <RoutePreviewMap
-            pickupLocation={pickup}
-            deliveryLocation={delivery}
-            routeData={routeData}
-            height="260px"
-          />
-        </div>
+      <div className="space-y-5 animate-fadeIn">
+
+        {/* Map */}
+        <RouteMap pickup={pickup} delivery={delivery} />
 
         {/* Route Details */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-            Route Summary
-          </h4>
+          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Route Summary</h4>
           <div className="space-y-2 text-xs">
             <div className="flex gap-3">
               <div className="flex flex-col items-center gap-1 pt-1">
                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow" />
-                <div className="w-0.5 h-6 bg-slate-300" />
+                <div className="w-0.5 h-4 bg-slate-300" />
                 <div className="h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white shadow" />
               </div>
               <div className="space-y-3 flex-1">
                 <div>
-                  <p className="font-bold text-slate-900">
-                    {pickup?.formattedAddress || pickup?.label}
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Pickup · {form.pickupDate}
-                    {form.pickupTime ? ` at ${form.pickupTime}` : ''}
-                  </p>
+                  <p className="font-semibold text-slate-800">{pickup?.label?.split(',').slice(0, 2).join(', ')}</p>
+                  <p className="text-[10px] text-slate-500">Pickup · {form.pickupDate}{form.pickupTime ? ` at ${form.pickupTime}` : ''}</p>
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">
-                    {delivery?.formattedAddress || delivery?.label}
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Delivery Destination
-                  </p>
+                  <p className="font-semibold text-slate-800">{delivery?.label?.split(',').slice(0, 2).join(', ')}</p>
+                  <p className="text-[10px] text-slate-500">Delivery</p>
                 </div>
               </div>
             </div>
           </div>
 
           {routeData && (
-            <div className="flex items-center gap-4 pt-3 border-t border-slate-200">
-              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+            <div className="flex items-center gap-4 pt-2 border-t border-slate-200">
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
                 <Navigation className="h-3.5 w-3.5 text-amber-500" />
-                {routeData.distanceText || `${routeData.distanceKm} km`}
+                {routeData.distanceKm} km
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+              <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
                 <Clock className="h-3.5 w-3.5 text-amber-500" />
-                ~{routeData.durationText || formatDuration(routeData.durationMins)} drive
+                ~{formatDuration(routeData.durationMins)} drive
               </div>
             </div>
           )}
@@ -1035,28 +786,20 @@ export default function CreateBooking() {
 
         {/* Cargo & Vehicle Summary */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">
-            Cargo & Vehicle
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Cargo & Vehicle</h4>
+          <div className="grid grid-cols-2 gap-3 text-xs">
             {[
               { label: 'Vehicle', value: form.vehicleType },
               { label: 'Cargo Category', value: form.cargoCategory },
               { label: 'Description', value: form.cargoName },
               { label: 'Weight', value: `${form.weight} tons` },
-              form.volume
-                ? { label: 'Volume', value: `${form.volume} m³` }
-                : null,
-            ]
-              .filter(Boolean)
-              .map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase">
-                    {label}
-                  </p>
-                  <p className="font-semibold text-slate-700 mt-0.5">{value}</p>
-                </div>
-              ))}
+              form.volume ? { label: 'Volume', value: `${form.volume} m³` } : null,
+            ].filter(Boolean).map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[9px] font-bold text-slate-400 uppercase">{label}</p>
+                <p className="font-semibold text-slate-700 mt-0.5">{value}</p>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1064,14 +807,8 @@ export default function CreateBooking() {
         <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
           <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
           <div className="text-xs text-blue-700">
-            <p className="font-bold mb-0.5">
-              No price shown — that's intentional
-            </p>
-            <p className="font-medium opacity-80 leading-relaxed">
-              After you submit, a certified LoadAfrica broker will review your
-              route, cargo, and vehicle requirements and prepare an official
-              quotation for you to review and accept.
-            </p>
+            <p className="font-bold mb-0.5">No price shown — that's intentional</p>
+            <p className="font-medium opacity-80">After you submit, a certified LoadAfrica broker will review your route, cargo, and vehicle requirements and prepare an official quotation for you to review and accept.</p>
           </div>
         </div>
 
@@ -1096,13 +833,9 @@ export default function CreateBooking() {
             className="py-3 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-300 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-2 uppercase tracking-wider transition-colors shadow-lg shadow-amber-500/20"
           >
             {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
             ) : (
-              <>
-                <Send className="h-4 w-4" /> Submit Booking
-              </>
+              <><Send className="h-4 w-4" /> Submit Booking</>
             )}
           </button>
         </div>
@@ -1112,24 +845,19 @@ export default function CreateBooking() {
 
   // ── STEP 3: Success ───────────────────────
   const renderStep3 = () => (
-    <div className="py-8 text-center space-y-5 animate-fadeIn max-w-lg mx-auto">
+    <div className="py-8 text-center space-y-5 animate-fadeIn">
       <div className="h-20 w-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-lg shadow-emerald-500/20">
         <CheckCircle2 className="h-10 w-10" />
       </div>
       <div>
-        <h3 className="text-xl font-black text-slate-900">
-          Booking Submitted!
-        </h3>
+        <h3 className="text-xl font-black text-slate-900">Booking Submitted!</h3>
         <p className="text-sm text-slate-500 font-medium mt-2 max-w-xs mx-auto leading-relaxed">
-          Your booking request has been received. A LoadAfrica broker will
-          review your details and prepare a quotation.
+          Your booking request has been received. A LoadAfrica broker will review your details and prepare a quotation.
         </p>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left space-y-2.5 max-w-sm mx-auto">
-        <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">
-          What happens next?
-        </h4>
+        <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">What happens next?</h4>
         {[
           { step: '1', text: 'Broker reviews your route & cargo' },
           { step: '2', text: 'Broker prepares official quotation' },
@@ -1137,22 +865,15 @@ export default function CreateBooking() {
           { step: '4', text: 'You accept → booking is confirmed' },
           { step: '5', text: 'Payment processed → Driver assigned' },
         ].map(({ step, text }) => (
-          <div
-            key={step}
-            className="flex items-center gap-2.5 text-xs text-amber-800"
-          >
-            <div className="h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[9px] shrink-0">
-              {step}
-            </div>
+          <div key={step} className="flex items-center gap-2.5 text-xs text-amber-800">
+            <div className="h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-[9px] shrink-0">{step}</div>
             <span className="font-medium">{text}</span>
           </div>
         ))}
       </div>
 
       {submittedBookingId && (
-        <p className="text-[10px] text-slate-400 font-mono">
-          Booking ID: {submittedBookingId}
-        </p>
+        <p className="text-[10px] text-slate-400 font-mono">Booking ID: {submittedBookingId}</p>
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
@@ -1187,28 +908,22 @@ export default function CreateBooking() {
           )}
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase">
-              {step === 1
-                ? 'Book Transport'
-                : step === 2
-                ? 'Review & Submit'
-                : 'Request Submitted'}
+              {step === 1 ? 'Book Transport' : step === 2 ? 'Review & Submit' : 'Request Submitted'}
             </h1>
             <p className="text-sm text-slate-500 font-medium mt-1">
-              {step === 1
-                ? 'Fill in your cargo & route details'
-                : step === 2
-                ? 'Confirm your booking details'
-                : 'Awaiting broker quotation'}
+              {step === 1 ? 'Fill in your cargo & route details'
+                : step === 2 ? 'Confirm your booking details'
+                  : 'Awaiting broker quotation'}
             </p>
           </div>
         </div>
-        <div className="flex-shrink-0">{renderStepIndicator()}</div>
+        <div className="flex-shrink-0">
+          {renderStepIndicator()}
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden mt-2">
-        {step === 1 ? (
-          renderStep1()
-        ) : (
+        {step === 1 ? renderStep1() : (
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm h-full overflow-y-auto">
             {step === 2 && renderStep2()}
             {step === 3 && renderStep3()}

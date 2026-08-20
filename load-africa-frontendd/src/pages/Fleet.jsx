@@ -3,31 +3,43 @@ import Footer from '../components/Footer';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Truck, Bike, Car, Sofa, Milestone, Droplet, ArrowLeft
+  ArrowLeft, Truck, Users, ShieldCheck, TrendingUp, BellRing, Route
 } from 'lucide-react';
-import { Card } from '../components/ui';
 
 export default function Fleet() {
   const navigate = useNavigate();
 
-  const vehiclesList = [
-    { name: 'Motorbike', capacity: '10 kg', use: 'Fast same-day courier for documents and small parcels', icon: Bike },
-    { name: 'Small Car', capacity: '80 kg', use: 'Courier runs for parcels, groceries and light cargo', icon: Car },
-    { name: 'LDV', capacity: '1.5-3.5 tons', use: 'General utility deliveries, tools, and medium-scale cargo', icon: Truck },
-    { name: 'Bakkie', capacity: '500-1000 kg', use: 'Multi-purpose delivery vehicle for parcels, home moves, and retail', icon: Truck },
-    { name: 'Coldroom Bakkie', capacity: '500-1000 kg', use: 'Temperature-controlled transport for perishables and food cargo', icon: Truck },
-    { name: '1-3 Ton Truck', capacity: '1-3 tons', use: 'Light distribution and closed transit for retail products', icon: Truck },
-    { name: 'Furniture Truck', capacity: '3-5 tons', use: 'Spacious box truck optimized for household and office moves', icon: Sofa },
-    { name: '4-8 Ton Truck', capacity: '4-8 tons', use: 'Large capacity transport for heavy pallets and corporate logistics', icon: Truck },
-    { name: 'Box Truck', capacity: '4-8 tons', use: 'Enclosed cargo for secure, weather-protected deliveries', icon: Truck },
-    { name: 'Flatbed Truck', capacity: '8-30 tons', use: 'Oversized, irregular, or crane-loaded freight', icon: Truck },
-    { name: 'Dropside Truck', capacity: '3-8 tons', use: 'Open-top loads with fold-down sides for easy access', icon: Truck },
-    { name: 'Curtain-Side Truck', capacity: '8-14 tons', use: 'General palletized freight where side-loading with forklifts is necessary', icon: Truck },
-    { name: 'Crane Truck', capacity: '5-15 tons', use: 'Mounted crane for heavy lifting on project sites — self-load and unload building materials', icon: Truck },
-    { name: 'Tipper Truck', capacity: '10-15 tons', use: 'Bulk material hauling for site sand, gravel, and construction aggregates', icon: Truck },
-    { name: 'Side Tipper', capacity: '20-34 tons', use: 'Heavy bulk mining aggregate, ore, and sand transit', icon: Milestone },
-    { name: 'Water Tanker', capacity: '8-18 kL', use: 'Water supply hauling for construction sites, events, or agriculture', icon: Droplet },
-    { name: 'Fuel Tanker', capacity: '20-40 kL', use: 'Safe commercial transport for fuels, oils, and bulk industrial liquids', icon: Droplet }
+  const workflowSteps = [
+    { 
+      title: 'Manage Your Fleet', 
+      desc: 'Add and manage all your transport vehicles and drivers under one centralized company profile.', 
+      icon: Truck 
+    },
+    { 
+      title: 'Control Availability', 
+      desc: 'Keep vehicle and driver availability up-to-date to ensure you only receive offers when you are ready to haul.', 
+      icon: Users 
+    },
+    { 
+      title: 'Receive Load Offers', 
+      desc: 'Receive premium, broker-assigned load offers automatically matched to your fleet capabilities and location.', 
+      icon: BellRing 
+    },
+    { 
+      title: 'Accept & Dispatch', 
+      desc: 'Review offers, accept loads, and dispatch an available vehicle and driver instantly from your dashboard.', 
+      icon: ShieldCheck 
+    },
+    { 
+      title: 'Monitor Active Trips', 
+      desc: 'Track your drivers\' live trip status from pickup to destination arrival and POD upload.', 
+      icon: Route 
+    },
+    { 
+      title: 'Track Performance', 
+      desc: 'Manage your hygiene, uniform standards, and documentation compliance scores to secure more loads.', 
+      icon: TrendingUp 
+    }
   ];
 
   return (
@@ -36,7 +48,7 @@ export default function Fleet() {
       <Navbar />
 
       {/* Hero Header Area */}
-      <div className="relative z-10 w-full overflow-hidden bg-slate-900 text-white border-b border-slate-800 py-12 lg:py-20 mt-16">
+      <div className="relative z-10 w-full overflow-hidden bg-slate-900 text-white border-b border-slate-800 py-12 lg:py-24 mt-16">
         <main className="relative z-10 max-w-7xl mx-auto px-6 text-left space-y-6">
           <button 
             onClick={() => navigate('/')}
@@ -47,80 +59,79 @@ export default function Fleet() {
           
           <div className="space-y-4">
             <span className="text-[#f99c00] font-bold text-xs uppercase tracking-wider block">
-              OUR FLEET
+              PARTNER WITH LOADAFRICA
             </span>
             <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight uppercase max-w-4xl tracking-tight">
-              EVERY VEHICLE FOR EVERY LOAD
+              GROW YOUR TRANSPORT BUSINESS WITH PREMIUM FREIGHT
             </h1>
             <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed max-w-3xl">
-              From small bakkies for parcel courier runs to 34-ton side tippers for mining haulage — LoadAfrica's network covers it all across South Africa.
+              LoadAfrica connects verified Fleet Owners with consistent, high-quality broker-quoted loads. Manage your vehicles, dispatch drivers, and monitor compliance all in one powerful portal.
             </p>
-            <div className="flex flex-wrap gap-4 pt-4">
-              <button
-                onClick={() => navigate('/login')}
-                className="px-6 py-3.5 bg-[#f99c00] hover:bg-[#e08b00] text-slate-950 font-black rounded-lg text-xs uppercase tracking-wider"
-              >
-                BOOK A LOAD
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-lg text-xs tracking-wider uppercase border border-slate-700"
-              >
-                Request Quote
-              </button>
+            <div className="flex flex-wrap gap-4 pt-6">
               <button
                 onClick={() => navigate('/fleet/register')}
-                className="px-6 py-3.5 border border-[#f99c00] hover:bg-[#f99c00] hover:text-slate-950 text-[#f99c00] font-black rounded-lg text-xs tracking-wider transition-colors uppercase"
+                className="px-6 py-3.5 bg-[#f99c00] hover:bg-[#e08b00] text-slate-950 font-black rounded-lg text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20"
               >
-                LIST YOUR FLEET
+                REGISTER AS FLEET OWNER
+              </button>
+              <button
+                onClick={() => navigate('/login')}
+                className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-lg text-xs tracking-wider uppercase border border-slate-600 shadow-md"
+              >
+                SIGN IN TO PORTAL
               </button>
             </div>
           </div>
         </main>
       </div>
 
-      {/* Every Vehicle Section with light grey background */}
-      <section className="bg-[#F0F2F6] w-full border-t border-b border-slate-200/60 pt-12 pb-20">
+      {/* Fleet Owner Workflow Section */}
+      <section className="bg-[#F0F2F6] w-full border-t border-b border-slate-200/60 pt-16 pb-24">
         <div className="max-w-7xl mx-auto px-6 space-y-12">
-          {/* Center Section Heading */}
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-955 uppercase">
-              EVERY VEHICLE YOU NEED
+          {/* Section Heading */}
+          <div className="text-center space-y-2 max-w-3xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
+              HOW IT WORKS FOR FLEET OWNERS
             </h2>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-              From bakkies to heavy-duty trucks
+            <p className="text-sm text-slate-500 font-semibold tracking-wide">
+              A streamlined dispatch and management platform built for transport companies.
             </p>
           </div>
 
-          {/* Vehicles Grid Catalog */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {vehiclesList.map((vh, idx) => {
-              const Icon = vh.icon;
+          {/* Workflow Feature Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {workflowSteps.map((step, idx) => {
+              const Icon = step.icon;
               return (
-                <div key={idx} className="bg-white border border-slate-200 shadow-md hover:shadow-xl hover:-translate-y-1.5 hover:border-[#f99c00] rounded-2xl overflow-hidden flex flex-col h-full min-h-[260px] text-center transition-all duration-300 ease-out transform">
-                  {/* Top Half: Light Grey Background with Divider Border and Orange Icon */}
-                  <div className="bg-[#F3F3F4] py-10 flex items-center justify-center border-b border-slate-200/50">
-                    <Icon className="h-10 w-10 text-[#f99c00] stroke-[1.8]" />
+                <div key={idx} className="bg-white border border-slate-200 shadow-md hover:shadow-xl hover:-translate-y-1 hover:border-[#f99c00] rounded-2xl p-8 flex flex-col items-start transition-all duration-300 ease-out transform">
+                  <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center mb-6 border border-amber-100">
+                    <Icon className="h-6 w-6 text-[#f99c00] stroke-[2]" />
                   </div>
                   
-                  {/* Bottom Half: White Background with Text */}
-                  <div className="p-5 flex-1 flex flex-col justify-between bg-white">
-                    <div className="space-y-1">
-                      <h4 className="font-extrabold text-sm text-slate-900">{vh.name}</h4>
-                      <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wide">
-                        {vh.capacity.startsWith('Up to') || vh.capacity.includes('tons') || vh.capacity.includes('kL') ? vh.capacity : `Up to ${vh.capacity}`}
-                      </span>
-                    </div>
-                    {vh.use && (
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-normal mt-2">
-                        {vh.use}
-                      </p>
-                    )}
+                  <div className="space-y-3">
+                    <h4 className="font-black text-lg text-slate-900 uppercase tracking-tight">{step.title}</h4>
+                    <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                      {step.desc}
+                    </p>
                   </div>
                 </div>
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* Trust/Footer Banner */}
+      <section className="bg-white py-16 text-center border-b border-slate-100">
+        <div className="max-w-4xl mx-auto px-6 space-y-6">
+          <h3 className="text-2xl font-black text-slate-900 uppercase">Ready to optimize your fleet operations?</h3>
+          <p className="text-slate-500 font-medium">Join Africa's fastest-growing logistics network today.</p>
+          <button
+            onClick={() => navigate('/fleet/register')}
+            className="mt-4 px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-lg text-sm uppercase tracking-widest shadow-xl transition-colors"
+          >
+            BECOME A PARTNER
+          </button>
         </div>
       </section>
 

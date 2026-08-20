@@ -1,14 +1,18 @@
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate as useNav } from 'react-router-dom';
 import {
-  Truck, User, Shield, Wrench, Building, Mail, MessageSquare
+  Truck, User, Shield, Wrench, Building, Mail, MessageSquare, Zap, HardHat
 } from 'lucide-react';
 import { Card } from '../components/ui';
 
 export default function Register() {
   const navigate = useNav();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans overflow-x-hidden relative selection:bg-amber-500 selection:text-slate-950">
@@ -25,8 +29,8 @@ export default function Register() {
           </p>
         </div>
 
-        {/* 2x2 Grid of registration cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left max-w-5xl mx-auto">
+        {/* 3x2 Grid of registration cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-left max-w-6xl mx-auto">
           
           {/* Card 1: Customer */}
           <Card className="bg-white border border-slate-200/80 p-6 rounded-2xl flex flex-col justify-between shadow-xs">
@@ -109,6 +113,48 @@ export default function Register() {
               className="mt-4 w-full py-2.5 bg-[#f99c00] hover:bg-[#e08b00] text-slate-950 font-extrabold rounded-lg text-xs tracking-wide transition-colors flex items-center justify-center gap-2"
             >
               SIGN UP AS BROKER <ArrowRight className="h-4 w-4" />
+            </button>
+          </Card>
+
+          {/* Card 5: Plant Owner */}
+          <Card className="bg-white border border-slate-200/80 p-6 rounded-2xl flex flex-col justify-between shadow-xs">
+            <div className="space-y-3">
+              <div className="h-10 w-10 rounded-lg bg-amber-50 text-[#f99c00] flex items-center justify-center">
+                <Zap className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-base text-slate-950">Plant Owner</h4>
+                <p className="text-xs text-slate-550 leading-relaxed font-normal">
+                  Rent out your heavy machinery and yellow metal equipment for construction and mining.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/signup')}
+              className="mt-4 w-full py-2.5 bg-[#f99c00] hover:bg-[#e08b00] text-slate-950 font-extrabold rounded-lg text-xs tracking-wide transition-colors flex items-center justify-center gap-2"
+            >
+              SIGN UP AS PLANT OWNER <ArrowRight className="h-4 w-4" />
+            </button>
+          </Card>
+
+          {/* Card 6: Machine Operator */}
+          <Card className="bg-white border border-slate-200/80 p-6 rounded-2xl flex flex-col justify-between shadow-xs">
+            <div className="space-y-3">
+              <div className="h-10 w-10 rounded-lg bg-amber-50 text-[#f99c00] flex items-center justify-center">
+                <HardHat className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-base text-slate-950">Machine Operator</h4>
+                <p className="text-xs text-slate-550 leading-relaxed font-normal">
+                  Find lucrative contracts and jobs with Plant Owners looking for your specialized skills.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/signup')}
+              className="mt-4 w-full py-2.5 bg-[#f99c00] hover:bg-[#e08b00] text-slate-950 font-extrabold rounded-lg text-xs tracking-wide transition-colors flex items-center justify-center gap-2"
+            >
+              SIGN UP AS OPERATOR <ArrowRight className="h-4 w-4" />
             </button>
           </Card>
 

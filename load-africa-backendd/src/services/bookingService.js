@@ -36,22 +36,26 @@ const createBooking = async (req, res, next) => {
     const lon1 = pickup_coords_lng ? parseFloat(pickup_coords_lng) : null;
     const lat2 = delivery_coords_lat ? parseFloat(delivery_coords_lat) : null;
     const lon2 = delivery_coords_lng ? parseFloat(delivery_coords_lng) : null;
-    
+
     let distanceKm = estimated_distance ? parseFloat(estimated_distance) : null;
     let durationMins = estimated_duration_mins ? parseFloat(estimated_duration_mins) : null;
-    let routePolylineStr = req.body.route_polyline || null;
+    let routePolylineStr = null;
 
-    if (lat1 && lon1 && lat2 && lon2 && (!routePolylineStr || !distanceKm)) {
+    if (lat1 && lon1 && lat2 && lon2) {
       try {
-        const locationService = require('./locationService');
-        const routeData = await locationService.getRoute(lat1, lon1, lat2, lon2);
-        if (routeData) {
-          distanceKm = distanceKm || routeData.distanceKm;
-          durationMins = durationMins || routeData.durationMins;
-          routePolylineStr = routePolylineStr || routeData.polyline;
+        const axios = require('axios');
+        const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
+        const response = await axios.get(url);
+        if (response.data && response.data.routes && response.data.routes.length > 0) {
+          const route = response.data.routes[0];
+          distanceKm = parseFloat((route.distance / 1000).toFixed(2));
+          durationMins = parseFloat((route.duration / 60).toFixed(1));
+
+          const coords = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+          routePolylineStr = JSON.stringify(coords);
         }
       } catch (err) {
-        console.error('Backend Route Calculation Error:', err.message);
+        console.error('Backend OSRM Route Calculation Error:', err);
       }
     }
 

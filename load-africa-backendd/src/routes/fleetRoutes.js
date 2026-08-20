@@ -14,7 +14,9 @@ const {
   getLoads,
   acceptAndDispatch,
   getProfile,
-  updateProfile
+  updateProfile,
+  getPendingOffers,
+  acceptLoadOffer
 } = require('../controllers/fleetController');
 
 const router = express.Router();
@@ -60,6 +62,8 @@ router.put('/drivers/:id/status', softProtect, updateDriverStatus);
 router.delete('/drivers/:id', softProtect, deleteDriver);
 
 // Load Management & Dispatch
+router.get('/offers', softProtect, getPendingOffers);
+router.post('/offers/:id/accept', softProtect, acceptLoadOffer);
 router.get('/loads', softProtect, getLoads);
 router.post('/loads/:id/dispatch', softProtect, acceptAndDispatch);
 

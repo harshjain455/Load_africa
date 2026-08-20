@@ -33,7 +33,6 @@ const financeRoutes = require('./routes/financeRoutes');
 const brokerRoutes = require('./routes/brokerRoutes');
 const settingRoutes = require('./routes/settingRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
-const locationRoutes = require('./routes/locationRoutes');
 const path = require('path');
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -49,7 +48,6 @@ app.use('/api/v1/finance', financeRoutes);
 app.use('/api/v1/broker', brokerRoutes);
 app.use('/api/v1/settings', settingRoutes);
 app.use('/api/v1/upload', uploadRoutes);
-app.use('/api/v1/locations', locationRoutes);
 
 // Basic Health Check Route
 app.get('/api/v1/health', (req, res) => {
