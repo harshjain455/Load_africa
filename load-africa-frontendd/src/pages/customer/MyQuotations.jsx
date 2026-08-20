@@ -242,16 +242,16 @@ function QuoteCard({ booking, onAccept, onReject, actionLoading }) {
         </div>
       )}
 
-      {['CUSTOMER_ACCEPTED', 'BOOKING_CONFIRMED', 'QUOTE_ACCEPTED', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'PLANT_ASSIGNED', 'DRIVER_SEARCHING', 'DRIVER_ASSIGNED'].includes(booking.status) ? (
+      {['CUSTOMER_ACCEPTED', 'BOOKING_CONFIRMED', 'QUOTE_ACCEPTED', 'TRANSPORTER_SEARCHING', 'OFFER_SENT', 'TRANSPORTER_AVAILABLE', 'AVAILABILITY_CONFIRMED', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'PLANT_ASSIGNED', 'DRIVER_SEARCHING', 'TRANSPORTER_ASSIGNMENT', 'DRIVER_ASSIGNED'].includes(booking.status) ? (
         <div className="p-4 border-t border-slate-100 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
-              {booking.status === 'DRIVER_SEARCHING' ? (
-                <><Loader2 className="h-4 w-4 animate-spin text-amber-500" /> <span className="text-amber-600">Searching for available transporter...</span></>
-              ) : booking.status === 'PAYMENT_PENDING' ? (
-                <><CheckCircle2 className="h-4 w-4" /> Quote accepted — ready for payment.</>
+              {['TRANSPORTER_SEARCHING', 'OFFER_SENT'].includes(booking.status) ? (
+                <><Loader2 className="h-4 w-4 animate-spin text-amber-500" /> <span className="text-amber-600">Searching for closest available transporter...</span></>
+              ) : ['AVAILABILITY_CONFIRMED', 'PAYMENT_PENDING'].includes(booking.status) ? (
+                <><CheckCircle2 className="h-4 w-4" /> Transporter confirmed! Ready for payment.</>
               ) : (
-                <><CheckCircle2 className="h-4 w-4" /> {booking.bookingType === 'Plant Hire' ? 'Quote accepted — processing booking' : 'Quote accepted'}</>
+                <><CheckCircle2 className="h-4 w-4" /> {booking.bookingType === 'Plant Hire' ? 'Processing booking' : 'Quote accepted'}</>
               )}
             </div>
             <button
@@ -261,7 +261,7 @@ function QuoteCard({ booking, onAccept, onReject, actionLoading }) {
               View Details <ChevronRight className="h-3 w-3" />
             </button>
           </div>
-          {['PAYMENT_PENDING', 'DRIVER_ASSIGNED'].includes(booking.status) && (
+          {['AVAILABILITY_CONFIRMED', 'PAYMENT_PENDING', 'DRIVER_ASSIGNED'].includes(booking.status) && (
             <button
               onClick={() => window.location.href = `/customer/payment/${booking.id}`}
               className="mt-2 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 w-full"

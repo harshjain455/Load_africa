@@ -37,8 +37,20 @@ const verifyPODAndReleasePayment = async (req, res) => {
     if (!invoice) return res.status(400).json({ success: false, message: 'No paid invoice found for this booking' });
 
     const totalAmount = Number(invoice.total_amount);
-    const platformAmount = Number(invoice.platform_commission);
-    const providerAmount = Number(invoice.payout_amount);
+    
+    // Strict 100% cap check
+    // In production, these should come from configurable `PricingConfig` or `SystemSetting`
+    const fleetPercentage = 0.90;
+    const brokerPercentage = assignment.broker_id ? 0.05 : 0.00;
+    const platformPercentage = 0.10 - brokerPercentage; // Platform yields its cut to broker
+    
+    if (fleetPercentage + brokerPercentage + platformPercentage > 1.0) {
+      throw new Error("Configuration Error: Payout percentages exceed 100%.");
+    }
+
+    const providerAmount = totalAmount * fleetPercentage;
+    const platformAmount = totalAmount * platformPercentage;
+    const brokerAmount = totalAmount * brokerPercentage;
     
     // Admin Wallet logic
     const adminUser = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
@@ -115,8 +127,7 @@ const verifyPODAndReleasePayment = async (req, res) => {
       }
 
       // Broker Wallet Update
-      if (assignment.broker_id) {
-        const brokerAmount = totalAmount * 0.05; // 5% broker fee
+      if (assignment.broker_id && brokerAmount > 0) {
         const broker = await tx.broker.findUnique({ where: { id: assignment.broker_id } });
         let bWallet = await tx.wallet.findFirst({ where: { user_id: broker.user_id } });
         if (!bWallet) bWallet = await tx.wallet.create({ data: { user_id: broker.user_id, balance: 0 } });
@@ -286,16 +297,27 @@ const simulateStripeWebhook = async (req, res) => {
       });
       await tx.booking.update({
         where: { id: bookingId },
-        data: { status: 'PAYMENT_RECEIVED' }
+        data: { status: 'TRANSPORTER_ASSIGNMENT' }
       });
       await tx.trackingHistory.create({
-        data: { booking_id: bookingId, status: 'PAYMENT_RECEIVED', remarks: 'Customer completed mock payment simulation.' }
+        data: { booking_id: bookingId, status: 'PAYMENT_RECEIVED', remarks: 'Customer completed payment.' }
       });
+
+      // Find the accepted offer to create the assignment
+      const acceptedOffer = await tx.loadOffer.findFirst({
+        where: { booking_id: bookingId, status: 'ACCEPTED' }
+      });
+
+      if (acceptedOffer && acceptedOffer.fleet_owner_id) {
+        await tx.bookingAssignment.create({
+          data: {
+            booking_id: bookingId,
+            fleet_owner_id: acceptedOffer.fleet_owner_id,
+            status: 'PENDING'
+          }
+        });
+      }
     });
-    
-    // Broadcast
-    const { searchAndOfferLoad } = require('../services/matchingService');
-    searchAndOfferLoad(bookingId).catch(console.error);
 
     res.json({ success: true, message: 'Mock payment verified' });
   } catch (err) {
@@ -331,16 +353,31 @@ const stripeWebhook = async (req, res) => {
           data: { status: 'PAID' }
         });
 
-        // 3. Mark Booking as PAYMENT_RECEIVED
+        // 3. Mark Booking as TRANSPORTER_ASSIGNMENT
         await tx.booking.update({
           where: { id: bookingId },
-          data: { status: 'PAYMENT_RECEIVED' }
+          data: { status: 'TRANSPORTER_ASSIGNMENT' }
         });
 
         // Add to tracking
         await tx.trackingHistory.create({
-          data: { booking_id: bookingId, status: 'PAYMENT_RECEIVED', remarks: 'Customer completed Stripe payment. Booking broadcasted to network.' }
+          data: { booking_id: bookingId, status: 'PAYMENT_RECEIVED', remarks: 'Customer completed Stripe payment.' }
         });
+
+        // Create assignment
+        const acceptedOffer = await tx.loadOffer.findFirst({
+          where: { booking_id: bookingId, status: 'ACCEPTED' }
+        });
+
+        if (acceptedOffer && acceptedOffer.fleet_owner_id) {
+          await tx.bookingAssignment.create({
+            data: {
+              booking_id: bookingId,
+              fleet_owner_id: acceptedOffer.fleet_owner_id,
+              status: 'PENDING'
+            }
+          });
+        }
 
         // Log Financial Activity
         await tx.activityLog.create({

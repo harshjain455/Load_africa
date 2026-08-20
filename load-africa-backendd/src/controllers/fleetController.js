@@ -601,6 +601,110 @@ const acceptAndDispatch = async (req, res) => {
   }
 };
 
+const getPendingOffers = async (req, res) => {
+  try {
+    const fleetOwnerId = await getFleetOwnerId(req);
+    const offers = await prisma.loadOffer.findMany({
+      where: { fleet_owner_id: fleetOwnerId, status: 'PENDING' },
+      include: {
+        booking: {
+          include: { customer: { include: { user: true } }, quotes: true }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+    res.status(200).json({ success: true, data: offers });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const acceptLoadOffer = async (req, res) => {
+  try {
+    const fleetOwnerId = await getFleetOwnerId(req);
+    const { id } = req.params; // LoadOffer ID
+
+    const offer = await prisma.loadOffer.findFirst({
+      where: { id, fleet_owner_id: fleetOwnerId, status: 'PENDING' },
+      include: { booking: { include: { quotes: true } } }
+    });
+
+    if (!offer) return res.status(404).json({ success: false, message: 'Offer not found or already processed' });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Accept the offer
+      await tx.loadOffer.update({
+        where: { id },
+        data: { status: 'ACCEPTED' }
+      });
+
+      // 2. Reject other offers for this booking
+      await tx.loadOffer.updateMany({
+        where: { booking_id: offer.booking_id, id: { not: id } },
+        data: { status: 'REJECTED_OTHER' }
+      });
+
+      // 3. Update booking status to AVAILABILITY_CONFIRMED
+      const b = await tx.booking.update({
+        where: { id: offer.booking_id },
+        data: { status: 'AVAILABILITY_CONFIRMED' }
+      });
+
+      await tx.trackingHistory.create({
+        data: {
+          booking_id: offer.booking_id,
+          status: 'AVAILABILITY_CONFIRMED',
+          remarks: 'Fleet Owner confirmed availability. Awaiting customer payment.',
+          updated_by: req.user.id
+        }
+      });
+
+      // 4. GENERATE INVOICE HERE (Wait for payment)
+      const existingInvoice = await tx.invoice.findFirst({
+        where: { booking_id: offer.booking_id }
+      });
+      
+      if (!existingInvoice) {
+        const grandTotal = offer.booking.quotes.length > 0 ? Number(offer.booking.quotes[0].grand_total) : 1500;
+        
+        await tx.invoice.create({
+          data: {
+            invoice_no: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
+            booking_id: offer.booking_id,
+            customer_id: offer.booking.customer_id,
+            amount: grandTotal, // Note: deductions happen during payout
+            tax_amount: 0,
+            total_amount: grandTotal,
+            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Due in 7 days
+            status: 'DRAFT'
+          }
+        });
+      }
+      
+      // Auto transition to PAYMENT_PENDING now that Invoice exists
+      await tx.booking.update({
+        where: { id: offer.booking_id },
+        data: { status: 'PAYMENT_PENDING' }
+      });
+
+      await tx.trackingHistory.create({
+        data: {
+          booking_id: offer.booking_id,
+          status: 'PAYMENT_PENDING',
+          remarks: 'Invoice generated. Pending customer payment.',
+          updated_by: 'SYSTEM'
+        }
+      });
+
+      return b;
+    });
+
+    res.status(200).json({ success: true, message: 'Offer accepted. Waiting for customer payment.', data: updated });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const fleetOwnerId = await getFleetOwnerId(req);
@@ -682,5 +786,7 @@ module.exports = {
   getLoads,
   acceptAndDispatch,
   getProfile,
-  updateProfile
+  updateProfile,
+  getPendingOffers,
+  acceptLoadOffer
 };

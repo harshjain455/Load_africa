@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 // Haversine formula to calculate distance between two coordinates in km
 function calculateDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
-  const R = 6371; // km
+  const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -15,7 +15,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Searches for the closest available driver and creates a LoadOffer.
+ * Searches for the closest available transporter (Fleet Owner) based on real telemetry,
+ * calculates ETA, and creates an assignment offer.
  * @param {string} bookingId 
  */
 async function searchAndOfferLoad(bookingId) {
@@ -26,42 +27,104 @@ async function searchAndOfferLoad(bookingId) {
 
     if (!booking) throw new Error('Booking not found');
 
-    // If it's a Plant Hire booking, broadcast to Plant Owners via HireRequest
-    if (booking.cargo_category === 'PLANT_HIRE' || booking.cargo_category === 'Plant Hire') {
-      const plantOwners = await prisma.plantOwner.findMany({
-        where: { status: 'ACTIVE' }
-      });
-
-      if (plantOwners.length === 0) {
-        console.log(`[MatchingService] No active Plant Owners found for booking ${bookingId}`);
-        return { success: false, message: 'No available plant owners found.' };
-      }
-
-      // Create a HireRequest for each active PlantOwner
-      const hireRequests = plantOwners.map(owner => ({
-        booking_id: bookingId,
-        plant_owner_id: owner.id,
-        status: 'PENDING'
-      }));
-
-      await prisma.hireRequest.createMany({
-        data: hireRequests
-      });
-
+    const setManualAction = async (reason) => {
+      console.log(`[MatchingService] ${reason}. Falling back to MANUAL_ACTION_REQUIRED.`);
       await prisma.booking.update({
         where: { id: bookingId },
-        data: { status: 'DRIVER_SEARCHING' } // Using standard searching status
+        data: { status: 'MANUAL_ACTION_REQUIRED' }
       });
+      await prisma.trackingHistory.create({
+        data: {
+          booking_id: bookingId,
+          status: 'MANUAL_ACTION_REQUIRED',
+          remarks: `Automated matching failed: ${reason}`,
+          updated_by: 'SYSTEM'
+        }
+      });
+      return { success: false, message: reason };
+    };
 
-      console.log(`[MatchingService] Broadcasted Plant Hire booking ${bookingId} to ${plantOwners.length} owners.`);
-      return { success: true, message: 'Broadcasted to plant owners.' };
+    const pLat = booking.pickup_coords_lat;
+    const pLng = booking.pickup_coords_lng;
+
+    if (!pLat || !pLng) {
+      return setManualAction('Pickup coordinates are missing');
     }
 
-    // Standard Freight Logic — DO NOT auto-match drivers.
-    // Booking stays at PAYMENT_RECEIVED. The Broker will manually assign a Fleet Owner
-    // from their "Assigned Loads" page, and the Fleet Owner will then assign Driver + Vehicle.
-    console.log(`[MatchingService] Freight booking ${bookingId} ready for Broker to assign Fleet Owner.`);
-    return { success: true, message: 'Booking ready for Broker assignment.' };
+    // Find all active drivers who have GPS data and belong to a Fleet
+    const drivers = await prisma.driverProfile.findMany({
+      where: {
+        gps_lat: { not: null },
+        gps_lng: { not: null },
+        driver: {
+          fleet_owner_id: { not: null },
+          status: 'AVAILABLE',
+          is_deleted: false
+        }
+      },
+      include: {
+        driver: {
+          include: { fleet_owner: true }
+        }
+      }
+    });
+
+    if (drivers.length === 0) {
+      return setManualAction('No available vehicles with active telemetry found in the region');
+    }
+
+    // Find the closest Fleet Owner based on their drivers' locations
+    let closestFleetOwnerId = null;
+    let minDistance = Infinity;
+
+    for (const dp of drivers) {
+      const dist = calculateDistance(pLat, pLng, dp.gps_lat, dp.gps_lng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestFleetOwnerId = dp.driver.fleet_owner_id;
+      }
+    }
+
+    // If the closest vehicle is ridiculously far (e.g., > 1000km), fallback to manual.
+    if (minDistance > 1000) {
+      return setManualAction(`Closest available vehicle is too far (${Math.round(minDistance)}km)`);
+    }
+
+    // Calculate ETA (assume average speed of 60 km/h)
+    const hoursToPickup = minDistance / 60;
+    const estimatedPickupTime = new Date(Date.now() + hoursToPickup * 60 * 60 * 1000);
+
+    // Create a LoadOffer targeted at the Fleet Owner (driver_id is null at this stage)
+    await prisma.loadOffer.create({
+      data: {
+        booking_id: bookingId,
+        fleet_owner_id: closestFleetOwnerId,
+        status: 'PENDING',
+        distance_km: minDistance,
+        estimated_pickup_time: estimatedPickupTime
+      }
+    });
+
+    // Update Booking Status to OFFER_SENT and store ETA
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { 
+        status: 'OFFER_SENT',
+        estimated_pickup_time: estimatedPickupTime
+      }
+    });
+
+    await prisma.trackingHistory.create({
+      data: {
+        booking_id: bookingId,
+        status: 'OFFER_SENT',
+        remarks: `Load offer sent to Transporter. Distance: ${Math.round(minDistance)}km, ETA: ${hoursToPickup.toFixed(1)} hrs.`,
+        updated_by: 'SYSTEM'
+      }
+    });
+
+    console.log(`[MatchingService] Successfully matched booking ${bookingId} to Fleet ${closestFleetOwnerId}.`);
+    return { success: true, message: 'Transporter matched and offer sent.' };
 
   } catch (error) {
     console.error('[MatchingService] Error:', error);

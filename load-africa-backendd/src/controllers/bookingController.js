@@ -147,9 +147,9 @@ const updateBookingStatus = async (req, res, next) => {
     let finalStatus = status;
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Phase 2: If customer accepts quote, auto-transition to PAYMENT_PENDING
+      // Phase 2: If customer accepts quote, auto-transition to TRANSPORTER_SEARCHING to trigger matching
       if (status === 'CUSTOMER_ACCEPTED') {
-        finalStatus = 'PAYMENT_PENDING';
+        finalStatus = 'TRANSPORTER_SEARCHING';
       }
 
       const b = await tx.booking.update({
@@ -190,32 +190,9 @@ const updateBookingStatus = async (req, res, next) => {
         }
       });
 
-      // Phase 2: Auto-generate invoice when quote is accepted (now PAYMENT_PENDING)
-      if (finalStatus === 'PAYMENT_PENDING') {
-        const existingInvoice = await tx.invoice.findFirst({
-          where: { booking_id: id }
-        });
-        
-        if (!existingInvoice) {
-          const grandTotal = booking.quotes.length > 0 ? Number(booking.quotes[0].grand_total) : 1500;
-          const platformComm = grandTotal * 0.10;
-          const payoutAmount = grandTotal * 0.90;
-
-          await tx.invoice.create({
-            data: {
-              invoice_no: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
-              booking_id: id,
-              customer_id: booking.customer_id,
-              amount: grandTotal - platformComm,
-              tax_amount: 0,
-              total_amount: grandTotal,
-              platform_commission: platformComm,
-              payout_amount: payoutAmount,
-              due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Due in 7 days
-              status: 'DRAFT' // Or PENDING, InvoiceStatus default is DRAFT
-            }
-          });
-        }
+      // Invoice generation is removed from here. It will now happen when Fleet confirms availability.
+      if (finalStatus === 'TRANSPORTER_SEARCHING') {
+        // We will trigger the matching service below, outside the transaction.
       }
 
       // Phase 2: Payout logic ONLY triggered on COMPLETED (Delivery verified)
@@ -289,6 +266,13 @@ const updateBookingStatus = async (req, res, next) => {
 
       return b;
     });
+
+    // TRIGGER: If status is now TRANSPORTER_SEARCHING, initiate matching
+    if (finalStatus === 'TRANSPORTER_SEARCHING') {
+      setTimeout(() => {
+        searchAndOfferLoad(id).catch(err => console.error('Matching Error:', err));
+      }, 500);
+    }
 
     res.status(200).json({ success: true, data: updated });
   } catch (error) {

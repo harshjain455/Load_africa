@@ -85,6 +85,16 @@ export const fleetService = {
   },
 
   // ── Load Management APIs ─────────────────────
+  getOffers: async () => {
+    const response = await api.get('/fleet/offers');
+    return response.data;
+  },
+
+  acceptOffer: async (offerId) => {
+    const response = await api.post(`/fleet/offers/${offerId}/accept`);
+    return response.data;
+  },
+
   getLoads: async () => {
     const response = await api.get('/fleet/loads');
     return response.data;

@@ -113,6 +113,61 @@ const applyForLoad = async (req, res) => {
   }
 };
 
+const rejectLoad = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body;
+    const driverId = await getDriverId(req);
+    
+    if (!driverId) return res.status(404).json({ success: false, message: 'Driver profile not found' });
+
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: bookingId },
+      include: { assignments: { where: { driver_id: driverId, status: 'PENDING' } } }
+    });
+
+    if (!booking || booking.assignments.length === 0) {
+      return res.status(400).json({ success: false, message: 'No pending assignment found for this load' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Mark assignment as REJECTED
+      await tx.bookingAssignment.update({
+        where: { id: booking.assignments[0].id },
+        data: { status: 'REJECTED' }
+      });
+
+      // 2. Mark booking back to TRANSPORTER_SEARCHING (Fallback trigger)
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { status: 'TRANSPORTER_SEARCHING' } // Revert to initial search state
+      });
+
+      await tx.trackingHistory.create({
+        data: { 
+          booking_id: bookingId, 
+          status: 'TRANSPORTER_SEARCHING', 
+          remarks: `Driver rejected load. Reason: ${reason || 'Not specified'}. Searching for new driver...` 
+        }
+      });
+      
+      await tx.activityLog.create({
+        data: { action: 'DRIVER_REJECTED', description: `Driver rejected booking ${bookingId}` }
+      });
+    });
+
+    // TRIGGER FALLBACK MATCHING
+    const { searchAndOfferLoad } = require('../services/matchingService');
+    setTimeout(() => {
+      searchAndOfferLoad(bookingId).catch(err => console.error('Fallback Matching Error:', err));
+    }, 500);
+
+    res.status(200).json({ success: true, message: 'Load rejected successfully. Finding alternative driver.' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const getActiveTrip = async (req, res) => {
   try {
     const driverId = await getDriverId(req);
@@ -990,7 +1045,7 @@ module.exports = {
   uploadKYCDocument,
   getPendingOffers,
   acceptOffer,
-  rejectOffer,
   submitCompliance,
-  updatePerformance
+  updatePerformance,
+  rejectLoad
 };

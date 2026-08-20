@@ -17,9 +17,9 @@ const {
   uploadKYCDocument,
   getPendingOffers,
   acceptOffer,
-  rejectOffer,
   submitCompliance,
-  updatePerformance
+  updatePerformance,
+  rejectLoad
 } = require('../controllers/driverController');
 
 const router = express.Router();
@@ -42,7 +42,7 @@ router.post('/kyc/upload-document', requireAuth, uploadKYCDocument);
 // Load Offers
 router.get('/offers/pending', requireAuth, getPendingOffers);
 router.post('/offers/:offerId/accept', requireAuth, acceptOffer);
-router.post('/offers/:offerId/reject', requireAuth, rejectOffer);
+router.post('/reject/:bookingId', requireAuth, rejectLoad);
 
 // Compliance and Performance
 router.post('/compliance', requireAuth, submitCompliance);
