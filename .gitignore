@@ -7,3 +7,5 @@ test_email.js
 
 node_modules/
 node_modules
+
+.env
