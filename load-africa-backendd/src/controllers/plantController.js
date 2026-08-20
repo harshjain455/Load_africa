@@ -1,4 +1,5 @@
 const { prisma } = require('../config/db');
+const bcrypt = require('bcrypt');
 
 // Helper to get plant owner ID (auto-creates PlantOwner if missing)
 const getPlantOwnerId = async (req) => {
@@ -114,7 +115,18 @@ const submitCompliance = async (req, res) => {
 const addMachine = async (req, res) => {
   try {
     const plantOwnerId = await getPlantOwnerId(req);
-    const { type, capacity, registration_number, machine_documents } = req.body;
+    const { 
+      type, 
+      capacity, 
+      registration_number, 
+      machine_documents,
+      category,
+      make,
+      model_name,
+      year,
+      hourly_rate,
+      min_hire_hours
+    } = req.body;
 
     const plantOwner = await prisma.plantOwner.findUnique({ where: { id: plantOwnerId } });
     const initialStatus = plantOwner?.status === 'ACTIVE' ? 'AVAILABLE' : 'CREATED';
@@ -123,6 +135,12 @@ const addMachine = async (req, res) => {
       data: {
         plant_owner_id: plantOwnerId,
         type,
+        category,
+        make,
+        model_name,
+        year: year ? parseInt(year, 10) : null,
+        hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null,
+        min_hire_hours: min_hire_hours ? parseInt(min_hire_hours, 10) : null,
         capacity: parseFloat(capacity) || 0,
         registration_number,
         status: initialStatus,
@@ -132,6 +150,7 @@ const addMachine = async (req, res) => {
 
     res.status(201).json({ success: true, data: machine });
   } catch (error) {
+    console.error("ADD_MACHINE_ERROR:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -275,7 +294,6 @@ const getPublicMachines = async (req, res) => {
   }
 };
 
-const bcrypt = require('bcrypt');
 
 const getMachineOperators = async (req, res) => {
   try {
@@ -291,18 +309,28 @@ const getMachineOperators = async (req, res) => {
   }
 };
 
+const fs = require('fs');
+
 const addMachineOperator = async (req, res) => {
   try {
     const plantOwnerId = await getPlantOwnerId(req);
     const { email, password, first_name, last_name, license, name } = req.body;
 
     if (!email || !password || !license) {
+      console.log('ADD_OPERATOR_400: Missing required fields');
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Email already exists' });
+      console.log('ADD_OPERATOR_400: Email already exists', email);
+      return res.status(400).json({ success: false, message: 'Email already exists! Please use a different email.' });
+    }
+
+    const existingLicense = await prisma.machineOperator.findUnique({ where: { license } });
+    if (existingLicense) {
+      console.log('ADD_OPERATOR_400: License already exists', license);
+      return res.status(400).json({ success: false, message: 'License number already exists! Please use a unique license.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -335,6 +363,8 @@ const addMachineOperator = async (req, res) => {
 
     res.status(201).json({ success: true, data: newOperator });
   } catch (error) {
+    fs.appendFileSync('error.log', `\n[${new Date().toISOString()}] ADD_OPERATOR_ERROR: ${error.message}\n${error.stack}\n`);
+    console.error("ADD_OPERATOR_ERROR:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
