@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { UserCheck, Truck, Briefcase, ShieldAlert, BarChart3, Zap } from 'lucide-react';
 
 export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey, stayOnPage = false, setDashboard }) {
   const navigate = useNavigate();
@@ -12,11 +13,10 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
       dashboard: '/customer/dashboard',
       email: 'patrice@arm.co.za',
       password: 'password123',
-      activeClass: 'bg-slate-900 border-2 border-amber-500 shadow-lg shadow-amber-500/5 text-amber-400',
-      hoverBg: 'hover:bg-amber-500/10',
-      hoverBorder: 'hover:border-amber-500/30',
-      hoverText: 'group-hover:text-amber-400',
-      normalText: 'text-slate-300',
+      icon: UserCheck,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50 hover:bg-blue-100',
+      border: 'border-blue-100 hover:border-blue-200',
       subtitle: 'Shipper'
     },
     {
@@ -25,11 +25,10 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
       dashboard: '/driver/dashboard',
       email: 'sipho.zuma@load-driver.co.za',
       password: 'password123',
-      activeClass: 'bg-slate-900 border-2 border-emerald-500 shadow-lg shadow-emerald-500/5 text-emerald-400',
-      hoverBg: 'hover:bg-emerald-500/10',
-      hoverBorder: 'hover:border-emerald-500/30',
-      hoverText: 'group-hover:text-emerald-400',
-      normalText: 'text-slate-300',
+      icon: Truck,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50 hover:bg-emerald-100',
+      border: 'border-emerald-100 hover:border-emerald-200',
       subtitle: 'Transporter'
     },
     {
@@ -38,25 +37,22 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
       dashboard: '/fleet-portal/dashboard',
       email: 'fleet@loadafrica.co.za',
       password: 'password123',
-      activeClass: 'bg-slate-900 border-2 border-blue-500 shadow-lg shadow-blue-500/5 text-blue-400',
-      hoverBg: 'hover:bg-blue-500/10',
-      hoverBorder: 'hover:border-blue-500/30',
-      hoverText: 'group-hover:text-blue-400',
-      normalText: 'text-slate-300',
+      icon: Briefcase,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50 hover:bg-amber-100',
+      border: 'border-amber-100 hover:border-amber-200',
       subtitle: 'Fleet Owner'
     },
-
     {
       role: 'Admin',
       path: '/admin/login',
       dashboard: '/admin-portal/dashboard',
       email: 'admin@loadafrica.com',
       password: 'admin123',
-      activeClass: 'bg-slate-900 border-2 border-indigo-500 shadow-lg shadow-indigo-500/5 text-indigo-400',
-      hoverBg: 'hover:bg-indigo-500/10',
-      hoverBorder: 'hover:border-indigo-500/30',
-      hoverText: 'group-hover:text-indigo-400',
-      normalText: 'text-slate-300',
+      icon: ShieldAlert,
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50 hover:bg-indigo-100',
+      border: 'border-indigo-100 hover:border-indigo-200',
       subtitle: 'Administrator'
     },
     {
@@ -65,11 +61,10 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
       dashboard: '/broker/dashboard',
       email: 'lwazi.dlamini@loadafrica-broker.co.za',
       password: 'password123',
-      activeClass: 'bg-slate-900 border-2 border-cyan-500 shadow-lg shadow-cyan-500/5 text-cyan-400',
-      hoverBg: 'hover:bg-cyan-500/10',
-      hoverBorder: 'hover:border-cyan-500/30',
-      hoverText: 'group-hover:text-cyan-400',
-      normalText: 'text-slate-300',
+      icon: BarChart3,
+      color: 'text-cyan-600',
+      bg: 'bg-cyan-50 hover:bg-cyan-100',
+      border: 'border-cyan-100 hover:border-cyan-200',
       subtitle: 'Freight Broker'
     },
     {
@@ -78,24 +73,21 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
       dashboard: '/plant-portal/dashboard',
       email: 'plant@loadafrica.co.za',
       password: 'password123',
-      activeClass: 'bg-slate-900 border-2 border-yellow-500 shadow-lg shadow-yellow-500/5 text-yellow-400',
-      hoverBg: 'hover:bg-yellow-500/10',
-      hoverBorder: 'hover:border-yellow-500/30',
-      hoverText: 'group-hover:text-yellow-400',
-      normalText: 'text-slate-300',
+      icon: Zap,
+      color: 'text-rose-600',
+      bg: 'bg-rose-50 hover:bg-rose-100',
+      border: 'border-rose-100 hover:border-rose-200',
       subtitle: 'Plant Owner'
     }
   ];
 
   const handleClick = (panel) => {
-    // If stayOnPage mode (e.g. /login page) — just fill credentials, don't navigate
-    if (stayOnPage || location.pathname === panel.path) {
+    if (stayOnPage || (location && location.pathname === panel.path)) {
       setEmail(panel.email);
       setPassword(panel.password);
       if (panel.role === 'Admin' && setSecretKey) {
         setSecretKey('AFRICA_ADMIN_2026');
       }
-      // Tell parent which dashboard to go to after sign in
       if (setDashboard) setDashboard(panel.dashboard);
     } else {
       navigate(panel.path, { 
@@ -109,32 +101,24 @@ export default function QuickLoginSelector({ setEmail, setPassword, setSecretKey
   };
 
   return (
-    <div className="mt-6 border-t border-slate-800/80 pt-6">
-      <p className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+    <div className="mt-4">
+      <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
         Quick Demo Login
       </p>
-      <div className="grid grid-cols-2 gap-2.5">
-        {panels.map((panel, index) => {
-          const isActive = location.pathname === panel.path;
+      <div className="grid grid-cols-2 gap-3">
+        {panels.map((panel) => {
           return (
             <button
               key={panel.role}
               type="button"
               onClick={() => handleClick(panel)}
-              className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-200 group border text-center ${
-                isActive 
-                  ? panel.activeClass 
-                  : 'bg-slate-900/40 border-slate-800/80'
-              } ${panel.hoverBg} ${panel.hoverBorder} ${index === panels.length - 1 && panels.length % 2 !== 0 ? 'col-span-2' : ''}`}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 cursor-pointer shadow-sm group ${panel.bg} ${panel.border}`}
             >
-              <span className={`text-xs font-bold transition-colors ${
-                isActive 
-                  ? '' 
-                  : panel.normalText
-              } ${panel.hoverText}`}>
+              <panel.icon className={`h-5 w-5 mb-1.5 ${panel.color} group-hover:scale-110 transition-transform`} />
+              <span className={`text-[11px] font-extrabold uppercase tracking-wide text-slate-700 group-hover:text-slate-900 transition-colors`}>
                 {panel.role} Panel
               </span>
-              <span className="text-[9px] text-slate-500 mt-0.5 uppercase tracking-wider font-medium">
+              <span className="text-[9px] text-slate-500 mt-0.5 uppercase tracking-wider font-semibold">
                 {panel.subtitle}
               </span>
             </button>
