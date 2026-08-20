@@ -18,8 +18,9 @@ export default function AssignedLoads() {
   const [selectedLoad, setSelectedLoad] = useState(null);
 
   const [fleets, setFleets] = useState([]);
+  const [partnerType, setPartnerType] = useState('FLEET');
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
-    const [assigning, setAssigning] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   
   const showNotification = (message, type = 'success') => {

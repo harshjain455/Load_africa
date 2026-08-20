@@ -50,6 +50,18 @@ const CARGO_CATEGORIES = [
   'Other',
 ];
 
+const getMaxWeight = (vehicleType) => {
+  if (!vehicleType) return null;
+  const match = vehicleType.match(/^(\d+)-Ton/i);
+  if (match) {
+    return parseFloat(match[1]);
+  }
+  if (vehicleType === 'Motorbike') return 0.1;
+  if (vehicleType === 'Small Car') return 0.5;
+  if (vehicleType === 'LDV / Bakkie' || vehicleType === 'Coldroom Bakkie') return 1.5;
+  return null;
+};
+
 // ─────────────────────────────────────────────
 // Address autocomplete hook with debounce & cancellation
 // ─────────────────────────────────────────────
@@ -436,6 +448,9 @@ export default function CreateBooking() {
     deliveryHook.selected?.lat !== undefined &&
     deliveryHook.selected?.lat !== null;
 
+  const maxWeight = getMaxWeight(form.vehicleType);
+  const isWeightValid = maxWeight === null || !form.weight || parseFloat(form.weight) <= maxWeight;
+
   const step1Valid =
     hasValidPickup &&
     hasValidDelivery &&
@@ -443,6 +458,7 @@ export default function CreateBooking() {
     form.cargoCategory &&
     form.cargoName.trim() &&
     form.weight &&
+    isWeightValid &&
     form.pickupDate;
 
   const formatDuration = (mins) => {
@@ -740,11 +756,21 @@ export default function CreateBooking() {
                       type="number"
                       min="0.1"
                       step="0.1"
+                      max={maxWeight || ''}
                       value={form.weight}
                       onChange={handleFormChange}
                       placeholder="e.g., 5.0"
-                      className="w-full px-3 h-10 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 bg-slate-50"
+                      className={`w-full px-3 h-10 text-xs font-semibold border rounded-xl focus:outline-none focus:ring-2 bg-slate-50 transition-all ${
+                        !isWeightValid && form.weight 
+                          ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10 text-red-600' 
+                          : 'border-slate-200 focus:border-amber-500 focus:ring-amber-500/10'
+                      }`}
                     />
+                    {!isWeightValid && form.weight && maxWeight && (
+                      <p className="text-[10px] font-bold text-red-500 mt-1 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> Max {maxWeight} tons
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">

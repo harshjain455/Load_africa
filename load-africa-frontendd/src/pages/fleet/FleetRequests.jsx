@@ -90,27 +90,56 @@ export default function FleetRequests() {
       {pendingBookings.length > 0 ? (
         <div className="grid gap-4">
           {pendingBookings.map((booking) => (
-            <Card key={booking.id} className="p-5">
-              <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">{booking.id?.slice(0, 8)}…</span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider">NEW</span>
+            <Card key={booking.id} className="p-5 border-l-4 border-l-amber-500">
+              <div className="flex flex-col md:flex-row gap-6 justify-between items-start">
+                <div className="flex-1 space-y-4 w-full">
+                  
+                  {/* Header Row */}
+                  <div className="flex justify-between items-start w-full">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">ID: {booking.id?.slice(0, 8)}…</span>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider">NEW REQUEST</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Date Received</span>
+                      <span className="text-xs font-semibold text-slate-700">{new Date(booking.created_at || Date.now()).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-3">
-                    <MapPin className="h-4 w-4 text-amber-500 shrink-0" />
-                    <span className="truncate">{booking.booking?.pickup_address?.split(',')[0] || 'Pickup'}</span>
-                    <ChevronRight className="h-3 w-3 text-slate-400 mx-1" />
-                    <span className="truncate">{booking.booking?.delivery_address?.split(',')[0] || 'Delivery'}</span>
+
+                  {/* Route & Logistics Row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div className="space-y-3">
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1"><MapPin className="h-3 w-3 text-amber-500" /> Pickup</span>
+                        <p className="text-sm font-semibold text-slate-800 line-clamp-2">{booking.booking?.pickup_address}</p>
+                      </div>
+                      <div>
+                        <span className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1"><MapPin className="h-3 w-3 text-emerald-500" /> Delivery</span>
+                        <p className="text-sm font-semibold text-slate-800 line-clamp-2">{booking.booking?.delivery_address}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3 lg:border-l lg:border-slate-200 lg:pl-4">
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Cargo Details</span>
+                        <p className="text-sm font-semibold text-slate-800">{booking.booking?.cargo_name} <span className="text-slate-500 font-normal">({booking.booking?.cargo_weight} Tons)</span></p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Required Vehicle</span>
+                        <p className="text-sm font-semibold text-slate-800">{booking.booking?.required_vehicle_type || 'Any Suitable Vehicle'}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6 text-xs text-slate-600">
-                    <div><span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Status</span>{booking.status?.replace(/_/g, ' ')}</div>
-                    <div><span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Date</span>{new Date(booking.created_at || Date.now()).toLocaleDateString()}</div>
-                  </div>
+
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setActionModal({ open: true, type: 'reject', load: booking })}>Reject</Button>
-                  <Button size="sm" onClick={() => setActionModal({ open: true, type: 'accept', load: booking })}>Accept & Assign</Button>
+                
+                <div className="flex flex-col gap-2 shrink-0 md:min-w-[140px]">
+                  <Button className="bg-emerald-600 hover:bg-emerald-500 text-white w-full py-6 shadow-md shadow-emerald-600/20" onClick={() => setActionModal({ open: true, type: 'accept', load: booking })}>
+                    Accept & Assign
+                  </Button>
+                  <Button variant="outline" className="w-full text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50" onClick={() => setActionModal({ open: true, type: 'reject', load: booking })}>
+                    Decline Request
+                  </Button>
                 </div>
               </div>
             </Card>

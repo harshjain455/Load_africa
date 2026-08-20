@@ -427,7 +427,7 @@ const getQuotations = async (req, res) => {
     const quotes = await prisma.quote.findMany({
       where: { 
         is_deleted: false,
-        prepared_by: broker.id
+        prepared_by: req.user.id
       },
       include: {
         booking: {

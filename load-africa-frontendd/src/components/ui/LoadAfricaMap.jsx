@@ -176,7 +176,7 @@ export default function LoadAfricaMap({
 
       {/* Live HUD info widget if active tracking */}
       {currentCoords ? (
-        <div className="absolute top-4 left-4 z-[1000] bg-slate-950/80 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-white/10 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-4 animate-fadeIn">
+        <div className="absolute top-4 left-16 z-[1000] bg-slate-950/80 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-white/10 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-4 animate-fadeIn">
           <div className="flex items-center gap-2">
             <div className="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-ping" />
             <span className="text-[10px] font-bold text-slate-350 uppercase">Live GPS Tracking</span>
@@ -193,7 +193,7 @@ export default function LoadAfricaMap({
           )}
         </div>
       ) : status === 'DRIVER_ASSIGNED' ? (
-        <div className="absolute top-4 left-4 z-[1000] bg-slate-950/90 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-amber-500/35 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-3 animate-pulse">
+        <div className="absolute top-4 left-16 z-[1000] bg-slate-950/90 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-amber-500/35 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-3 animate-pulse">
           <div className="h-2.5 w-2.5 bg-amber-500 rounded-full animate-ping" />
           <div>
             <p className="text-[10px] font-bold text-amber-400 uppercase">Awaiting Driver Confirmation</p>
@@ -201,7 +201,7 @@ export default function LoadAfricaMap({
           </div>
         </div>
       ) : status && status !== 'DRAFT' && status !== 'QUOTE_REQUESTED' && status !== 'QUOTE_PREPARED' ? (
-        <div className="absolute top-4 left-4 z-[1000] bg-slate-950/90 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-rose-500/30 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-3 animate-pulse">
+        <div className="absolute top-4 left-16 z-[1000] bg-slate-950/90 backdrop-blur-md text-white px-4 py-3 rounded-xl border border-rose-500/30 shadow-lg text-[10px] sm:text-xs font-semibold flex items-center gap-3 animate-pulse">
           <div className="h-2.5 w-2.5 bg-rose-500 rounded-full" />
           <div>
             <p className="text-[10px] font-bold text-rose-400 uppercase">Location Unavailable</p>
