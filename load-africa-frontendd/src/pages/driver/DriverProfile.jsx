@@ -62,6 +62,9 @@ export default function DriverProfile() {
             branchCode: p.bank_details.branchCode || ''
           });
         }
+        if (p.notification_preferences) {
+          setNotifications(p.notification_preferences);
+        }
       }
     } catch (err) {
       console.error("Failed to load profile", err);
@@ -111,6 +114,24 @@ export default function DriverProfile() {
       }
     } catch (err) {
       alert('Failed to update bank details');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotifications = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        notification_preferences: notifications
+      };
+      const res = await driverService.updateProfile(payload);
+      if (res.success) {
+        alert('Notification preferences updated successfully!');
+      }
+    } catch (err) {
+      alert('Failed to update notification preferences');
     } finally {
       setSaving(false);
     }
@@ -294,7 +315,7 @@ export default function DriverProfile() {
 
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
-              <div className="space-y-6">
+              <form onSubmit={handleSaveNotifications} className="space-y-6">
                 <div className="pb-4 border-b border-slate-100">
                   <h3 className="text-base font-bold text-slate-800">Notification Preferences</h3>
                   <p className="text-[10px] text-slate-500">Choose how you want to be notified about load assignments and payouts.</p>
@@ -312,6 +333,7 @@ export default function DriverProfile() {
                         <p className="text-[10px] text-slate-500">{pref.desc}</p>
                       </div>
                       <button 
+                        type="button"
                         onClick={() => toggleNotification(pref.id)}
                         className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${notifications[pref.id] ? 'bg-emerald-500' : 'bg-slate-300'}`}
                       >
@@ -320,7 +342,13 @@ export default function DriverProfile() {
                     </div>
                   ))}
                 </div>
-              </div>
+
+                <div className="pt-4 border-t border-slate-100 flex justify-end">
+                  <Button type="submit" disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white">
+                    {saving ? 'Saving...' : 'Save Preferences'}
+                  </Button>
+                </div>
+              </form>
             )}
 
             {/* Security Tab */}

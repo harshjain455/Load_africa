@@ -38,13 +38,13 @@ export default function ActiveTrips() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-slate-900 rounded-2xl overflow-hidden shadow-sm relative min-h-[500px]">
           <div className="absolute inset-0 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=-29.0,24.0&zoom=5&size=800x600&maptype=roadmap&style=feature:all|element:labels.text.fill|color:0x9ca3af&style=feature:all|element:labels.text.stroke|color:0x111827&style=feature:water|color:0x1f2937&style=feature:landscape|color:0x111827&style=feature:road|color:0x374151&style=feature:poi|visibility:off')] bg-cover bg-center opacity-80 mix-blend-screen" />
-          
+
           <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-8 bg-slate-900/60 backdrop-blur-sm z-10">
-             <Map className="h-12 w-12 text-slate-500 mb-4 animate-pulse" />
-             <h3 className="text-lg font-bold text-white">Live Tracking Hub</h3>
-             <p className="text-slate-400 text-sm mt-2 max-w-md">
-               Google Maps API integration for live DOT tracking is being initialized. For now, you can monitor the status of all active trips in the panel.
-             </p>
+            <Map className="h-12 w-12 text-slate-500 mb-4 animate-pulse" />
+            <h3 className="text-lg font-bold text-white">Live Tracking Hub</h3>
+            <p className="text-slate-400 text-sm mt-2 max-w-md">
+              Google Maps API integration for live DOT tracking is being initialized. For now, you can monitor the status of all active trips in the panel.
+            </p>
           </div>
         </div>
 

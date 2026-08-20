@@ -26,7 +26,7 @@ const settingController = {
   updateSettings: async (req, res) => {
     try {
       const updates = req.body; // Expecting an object like { GOOGLE_MAPS_KEY: '...', SMTP_SERVER: '...' }
-      
+
       const updatePromises = Object.keys(updates).map(key => {
         return prisma.systemSetting.upsert({
           where: { key: key },

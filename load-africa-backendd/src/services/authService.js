@@ -61,9 +61,9 @@ const registerUser = async (data) => {
       await tx.driverKYC.create({ data: { driver_id: driver.id } });
       await tx.driverApproval.create({ data: { driver_id: driver.id, status: 'PENDING' } });
     } else if (role === 'FLEET_OWNER') {
-      await tx.fleetOwner.create({ 
-        data: { 
-          user_id: user.id, 
+      await tx.fleetOwner.create({
+        data: {
+          user_id: user.id,
           company_name: companyName,
           vat_number: vatNumber,
           num_vehicles: numVehicles,
@@ -72,7 +72,7 @@ const registerUser = async (data) => {
           services_offered: servicesOffered,
           notes: notes,
           address: address
-        } 
+        }
       });
     } else if (role === 'PLANT_OWNER') {
       await tx.plantOwner.create({ data: { user_id: user.id, company_name: companyName } });
@@ -246,7 +246,7 @@ const DUMMY_USERS = {
 
 const loginUser = async (email, password) => {
   let user = await prisma.user.findUnique({ where: { email } });
-  
+
   if (!user) {
     if (DUMMY_USERS[email]) {
       // Auto-register dummy user

@@ -5,7 +5,7 @@ const { searchAndOfferLoad } = require('../services/matchingService');
 const getDriverId = async (req) => {
   if (req.user?.driver?.id) return req.user.driver.id;
   if (req.user?.operator?.id) return req.user.operator.id;
-  
+
   const driver = await prisma.driver.findUnique({ where: { user_id: req.user.id } });
   if (driver) return driver.id;
 
@@ -53,11 +53,11 @@ const applyForLoad = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const driverId = await getDriverId(req);
-    
+
     if (!driverId) return res.status(404).json({ success: false, message: 'Driver profile not found' });
 
     // Check if booking is available globally OR pending for this driver
-    const booking = await prisma.booking.findUnique({ 
+    const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: { assignments: { where: { driver_id: driverId, status: 'PENDING' } } }
     });
@@ -84,7 +84,7 @@ const applyForLoad = async (req, res) => {
             assigned_by: req.user?.id || driverId
           }
         });
-        
+
         await tx.booking.update({
           where: { id: bookingId },
           data: { status: 'DRIVER_ASSIGNED' }
@@ -94,7 +94,7 @@ const applyForLoad = async (req, res) => {
       await tx.trackingHistory.create({
         data: { booking_id: bookingId, status: 'DRIVER_ASSIGNED', remarks: 'Driver accepted and assigned to load' }
       });
-      
+
       await tx.activityLog.create({
         data: { action: 'DRIVER_ASSIGNED', description: `Driver accepted booking ${bookingId}` }
       });
@@ -116,7 +116,7 @@ const applyForLoad = async (req, res) => {
 const getActiveTrip = async (req, res) => {
   try {
     const driverId = await getDriverId(req);
-    
+
     // An active trip is an ACTIVE assigned booking that is not completed or cancelled
     const activeTrip = await prisma.bookingAssignment.findFirst({
       where: {
@@ -162,7 +162,7 @@ const updateTripStatus = async (req, res) => {
 
     // Ensure driver is assigned to this booking
     const assignment = await prisma.bookingAssignment.findFirst({
-      where: { 
+      where: {
         booking_id: bookingId,
         OR: [
           { driver_id: driverId },
@@ -190,7 +190,7 @@ const updateTripStatus = async (req, res) => {
         const existingInvoice = await tx.invoice.findFirst({
           where: { booking_id: bookingId }
         });
-        
+
         if (!existingInvoice) {
           const grandTotal = b.quotes.length > 0 ? Number(b.quotes[0].grand_total) : 1500;
           const platformComm = grandTotal * 0.10;
@@ -456,7 +456,7 @@ const getProfile = async (req, res) => {
       include: { user: true }
     });
     if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
-    
+
     res.status(200).json({
       success: true,
       data: {
@@ -465,7 +465,14 @@ const getProfile = async (req, res) => {
         email: driver.user.email,
         phone: driver.user.phone || '',
         avatar: driver.user.avatar || '',
-        bank_details: driver.user.bank_details || {}
+        bank_details: (() => {
+          try { return driver.user.bank_details ? JSON.parse(driver.user.bank_details) : {}; }
+          catch (e) { return {}; }
+        })(),
+        notification_preferences: (() => {
+          try { return driver.user.notification_preferences ? JSON.parse(driver.user.notification_preferences) : { sms: true, email: true, push: true }; }
+          catch (e) { return { sms: true, email: true, push: true }; }
+        })()
       }
     });
   } catch (error) {
@@ -481,7 +488,7 @@ const updateProfile = async (req, res) => {
     });
     if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
 
-    const { first_name, last_name, phone, bank_details, avatar } = req.body;
+    const { first_name, last_name, phone, bank_details, avatar, notification_preferences } = req.body;
 
     await prisma.user.update({
       where: { id: driver.user_id },
@@ -490,7 +497,8 @@ const updateProfile = async (req, res) => {
         last_name: last_name !== undefined ? last_name : undefined,
         phone: phone !== undefined ? phone : undefined,
         avatar: avatar !== undefined ? avatar : undefined,
-        bank_details: bank_details !== undefined ? bank_details : undefined,
+        bank_details: bank_details !== undefined ? (typeof bank_details === 'object' ? JSON.stringify(bank_details) : bank_details) : undefined,
+        notification_preferences: notification_preferences !== undefined ? (typeof notification_preferences === 'object' ? JSON.stringify(notification_preferences) : notification_preferences) : undefined,
       }
     });
 
@@ -538,7 +546,7 @@ const updateTelemetry = async (req, res) => {
 
     const completed = calcDist(startLat, startLng, latitude, longitude);
     const remaining = calcDist(latitude, longitude, endLat, endLng);
-    
+
     const etaMs = remaining > 0 ? (remaining / 50) * 60 * 60 * 1000 : 0;
     const etaDate = new Date(Date.now() + etaMs);
 
@@ -670,7 +678,7 @@ const getKYCDocuments = async (req, res) => {
 
     const driver = await prisma.driver.findUnique({
       where: { id: driverId },
-      include: { 
+      include: {
         approval: true,
         profile: true,
         kyc: true,
@@ -733,7 +741,7 @@ const uploadKYCDocument = async (req, res) => {
       where: { id: driverId },
       data: { status: 'PENDING' }
     });
-    
+
     const d = await prisma.driver.findUnique({ where: { id: driverId } });
     await prisma.user.update({
       where: { id: d.user_id },
@@ -774,7 +782,7 @@ const acceptOffer = async (req, res) => {
   try {
     const { offerId } = req.params;
     const driverId = await getDriverId(req);
-    
+
     const offer = await prisma.loadOffer.findFirst({
       where: { id: offerId, driver_id: driverId, status: 'PENDING' },
       include: { booking: true }
@@ -842,7 +850,7 @@ const rejectOffer = async (req, res) => {
   try {
     const { offerId } = req.params;
     const driverId = await getDriverId(req);
-    
+
     const offer = await prisma.loadOffer.findFirst({
       where: { id: offerId, driver_id: driverId, status: 'PENDING' }
     });
